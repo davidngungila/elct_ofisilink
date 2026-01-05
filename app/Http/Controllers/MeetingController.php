@@ -55,157 +55,174 @@ class MeetingController extends Controller
      */
     public function show($id)
     {
-        $user = Auth::user();
-        
-        // Load meeting with relationships
-        $meeting = DB::table('meetings')
-            ->leftJoin('meeting_categories', 'meetings.category_id', '=', 'meeting_categories.id')
-            ->leftJoin('branches', 'meetings.branch_id', '=', 'branches.id')
-            ->leftJoin('users as creator', 'meetings.created_by', '=', 'creator.id')
-            ->select(
-                'meetings.*',
-                'meeting_categories.name as category_name',
-                'branches.name as branch_name',
-                'creator.name as creator_name'
-            )
-            ->where('meetings.id', $id)
-            ->first();
+        try {
+            $user = Auth::user();
+            
+            // Load meeting with relationships
+            $meeting = DB::table('meetings')
+                ->leftJoin('meeting_categories', 'meetings.category_id', '=', 'meeting_categories.id')
+                ->leftJoin('branches', 'meetings.branch_id', '=', 'branches.id')
+                ->leftJoin('users as creator', 'meetings.created_by', '=', 'creator.id')
+                ->select(
+                    'meetings.*',
+                    'meeting_categories.name as category_name',
+                    'branches.name as branch_name',
+                    'branches.code as branch_code',
+                    'creator.name as creator_name'
+                )
+                ->where('meetings.id', $id)
+                ->first();
 
-        if (!$meeting) {
-            abort(404, 'Meeting not found');
-        }
-
-        // Check permissions
-        $canManageMeetings = $user->hasPermission('manage_meetings') || 
-                            $user->hasAnyRole(['System Admin', 'admin', 'super_admin', 'hod', 'ceo', 'General Manager', 'HR Officer']);
-        
-        $canApprove = $user->hasPermission('approve_meetings') || 
-                     $user->hasAnyRole(['System Admin', 'General Manager', 'HOD', 'HR Officer']);
-        
-        $canEdit = $canManageMeetings || $meeting->created_by == $user->id;
-
-        // Load participants
-        $participants = DB::table('meeting_participants')
-            ->leftJoin('users', function($join) {
-                $join->on('meeting_participants.user_id', '=', 'users.id')
-                     ->where('meeting_participants.participant_type', '=', 'staff');
-            })
-            ->where('meeting_participants.meeting_id', $id)
-            ->select(
-                'meeting_participants.*',
-                'users.name as user_name',
-                'users.email as user_email'
-            )
-            ->orderBy('meeting_participants.participant_type')
-            ->orderBy('meeting_participants.name')
-            ->get();
-
-        // Load agendas with documents
-        $orderColumn = Schema::hasColumn('meeting_agendas', 'sort_order') ? 'sort_order' : 'order_index';
-        $agendas = DB::table('meeting_agendas')
-            ->leftJoin('users as presenter', 'meeting_agendas.presenter_id', '=', 'presenter.id')
-            ->where('meeting_agendas.meeting_id', $id)
-            ->select(
-                'meeting_agendas.*',
-                'presenter.name as presenter_name'
-            )
-            ->orderBy($orderColumn)
-            ->get()
-            ->map(function($agenda) {
-                // Load documents for each agenda
-                $documents = DB::table('meeting_agenda_documents')
-                    ->where('meeting_agenda_id', $agenda->id)
-                    ->get();
-                $agenda->documents = $documents;
-                return $agenda;
-            });
-
-        // Load meeting minutes
-        $minutes = DB::table('meeting_minutes')
-            ->leftJoin('users as preparedBy', 'meeting_minutes.prepared_by', '=', 'preparedBy.id')
-            ->leftJoin('users as approvedBy', 'meeting_minutes.approved_by', '=', 'approvedBy.id')
-            ->where('meeting_minutes.meeting_id', $id)
-            ->select(
-                'meeting_minutes.*',
-                'preparedBy.name as prepared_by_name',
-                'approvedBy.name as approved_by_name'
-            )
-            ->first();
-
-        // Separate participants into staff and external
-        $staffParticipants = $participants->where('participant_type', 'staff');
-        $externalParticipants = $participants->where('participant_type', 'external');
-
-        // Load approval history
-        $approvalHistory = [];
-        if (isset($meeting->submitted_at) && $meeting->submitted_at) {
-            $submittedBy = $meeting->submitted_by ? DB::table('users')->where('id', $meeting->submitted_by)->first() : null;
-            $approvalHistory[] = [
-                'action' => 'Submitted',
-                'user' => $submittedBy->name ?? 'N/A',
-                'date' => $meeting->submitted_at,
-                'type' => 'submitted'
-            ];
-        }
-        if (isset($meeting->approved_at) && $meeting->approved_at) {
-            $approvedBy = $meeting->approved_by ? DB::table('users')->where('id', $meeting->approved_by)->first() : null;
-            $approvalHistory[] = [
-                'action' => 'Approved',
-                'user' => $approvedBy->name ?? 'N/A',
-                'date' => $meeting->approved_at,
-                'type' => 'approved'
-            ];
-        }
-        if (Schema::hasColumn('meetings', 'rejected_at') && isset($meeting->rejected_at) && $meeting->rejected_at) {
-            $rejectedBy = isset($meeting->rejected_by) && $meeting->rejected_by ? DB::table('users')->where('id', $meeting->rejected_by)->first() : null;
-            $approvalHistory[] = [
-                'action' => 'Rejected',
-                'user' => $rejectedBy->name ?? 'N/A',
-                'date' => $meeting->rejected_at,
-                'reason' => (isset($meeting->rejection_reason) && $meeting->rejection_reason) ? $meeting->rejection_reason : null,
-                'type' => 'rejected'
-            ];
-        }
-
-        // Calculate statistics
-        $stats = [
-            'total_participants' => $participants->count(),
-            'staff_participants' => $staffParticipants->count(),
-            'external_participants' => $externalParticipants->count(),
-            'total_agendas' => $agendas->count(),
-            'total_documents' => $agendas->sum(function($agenda) {
-                return $agenda->documents->count();
-            }),
-            'confirmed_attendees' => $participants->where('attendance_status', 'confirmed')->count(),
-            'invited_count' => $participants->where('attendance_status', 'invited')->count(),
-        ];
-
-        // Get updated by user (check if column exists first)
-        $updatedBy = null;
-        if (Schema::hasColumn('meetings', 'updated_by')) {
-            $updatedById = property_exists($meeting, 'updated_by') ? $meeting->updated_by : null;
-            if ($updatedById) {
-                $updatedBy = DB::table('users')->where('id', $updatedById)->first();
+            if (!$meeting) {
+                abort(404, 'Meeting not found');
             }
+
+            // Check permissions
+            $canManageMeetings = $user->hasPermission('manage_meetings') || 
+                                $user->hasAnyRole(['System Admin', 'admin', 'super_admin', 'hod', 'ceo', 'General Manager', 'HR Officer']);
+            
+            $canApprove = $user->hasPermission('approve_meetings') || 
+                         $user->hasAnyRole(['System Admin', 'General Manager', 'HOD', 'HR Officer']);
+            
+            // Safely get created_by
+            $createdById = property_exists($meeting, 'created_by') ? $meeting->created_by : null;
+            $canEdit = $canManageMeetings || ($createdById && $createdById == $user->id);
+
+            // Load participants
+            $participants = DB::table('meeting_participants')
+                ->leftJoin('users', function($join) {
+                    $join->on('meeting_participants.user_id', '=', 'users.id')
+                         ->where('meeting_participants.participant_type', '=', 'staff');
+                })
+                ->where('meeting_participants.meeting_id', $id)
+                ->select(
+                    'meeting_participants.*',
+                    'users.name as user_name',
+                    'users.email as user_email'
+                )
+                ->orderBy('meeting_participants.participant_type')
+                ->orderBy('meeting_participants.name')
+                ->get();
+
+            // Load agendas with documents
+            $orderColumn = Schema::hasColumn('meeting_agendas', 'sort_order') ? 'sort_order' : 'order_index';
+            $agendas = DB::table('meeting_agendas')
+                ->leftJoin('users as presenter', 'meeting_agendas.presenter_id', '=', 'presenter.id')
+                ->where('meeting_agendas.meeting_id', $id)
+                ->select(
+                    'meeting_agendas.*',
+                    'presenter.name as presenter_name'
+                )
+                ->orderBy($orderColumn)
+                ->get()
+                ->map(function($agenda) {
+                    // Load documents for each agenda
+                    $documents = DB::table('meeting_agenda_documents')
+                        ->where('meeting_agenda_id', $agenda->id)
+                        ->get();
+                    $agenda->documents = $documents;
+                    return $agenda;
+                });
+
+            // Load meeting minutes
+            $minutes = DB::table('meeting_minutes')
+                ->leftJoin('users as preparedBy', 'meeting_minutes.prepared_by', '=', 'preparedBy.id')
+                ->leftJoin('users as approvedBy', 'meeting_minutes.approved_by', '=', 'approvedBy.id')
+                ->where('meeting_minutes.meeting_id', $id)
+                ->select(
+                    'meeting_minutes.*',
+                    'preparedBy.name as prepared_by_name',
+                    'approvedBy.name as approved_by_name'
+                )
+                ->first();
+
+            // Separate participants into staff and external
+            $staffParticipants = $participants->where('participant_type', 'staff');
+            $externalParticipants = $participants->where('participant_type', 'external');
+
+            // Load approval history
+            $approvalHistory = [];
+            if (property_exists($meeting, 'submitted_at') && $meeting->submitted_at) {
+                $submittedById = property_exists($meeting, 'submitted_by') ? $meeting->submitted_by : null;
+                $submittedBy = $submittedById ? DB::table('users')->where('id', $submittedById)->first() : null;
+                $approvalHistory[] = [
+                    'action' => 'Submitted',
+                    'user' => $submittedBy->name ?? 'N/A',
+                    'date' => $meeting->submitted_at,
+                    'type' => 'submitted'
+                ];
+            }
+            if (property_exists($meeting, 'approved_at') && $meeting->approved_at) {
+                $approvedById = property_exists($meeting, 'approved_by') ? $meeting->approved_by : null;
+                $approvedBy = $approvedById ? DB::table('users')->where('id', $approvedById)->first() : null;
+                $approvalHistory[] = [
+                    'action' => 'Approved',
+                    'user' => $approvedBy->name ?? 'N/A',
+                    'date' => $meeting->approved_at,
+                    'type' => 'approved'
+                ];
+            }
+            if (Schema::hasColumn('meetings', 'rejected_at') && property_exists($meeting, 'rejected_at') && $meeting->rejected_at) {
+                $rejectedById = property_exists($meeting, 'rejected_by') ? $meeting->rejected_by : null;
+                $rejectedBy = $rejectedById ? DB::table('users')->where('id', $rejectedById)->first() : null;
+                $approvalHistory[] = [
+                    'action' => 'Rejected',
+                    'user' => $rejectedBy->name ?? 'N/A',
+                    'date' => $meeting->rejected_at,
+                    'reason' => (property_exists($meeting, 'rejection_reason') && $meeting->rejection_reason) ? $meeting->rejection_reason : null,
+                    'type' => 'rejected'
+                ];
+            }
+
+            // Calculate statistics
+            $stats = [
+                'total_participants' => $participants->count(),
+                'staff_participants' => $staffParticipants->count(),
+                'external_participants' => $externalParticipants->count(),
+                'total_agendas' => $agendas->count(),
+                'total_documents' => $agendas->sum(function($agenda) {
+                    return isset($agenda->documents) ? $agenda->documents->count() : 0;
+                }),
+                'confirmed_attendees' => $participants->where('attendance_status', 'confirmed')->count(),
+                'invited_count' => $participants->where('attendance_status', 'invited')->count(),
+            ];
+
+            // Get updated by user (check if column exists first)
+            $updatedBy = null;
+            if (Schema::hasColumn('meetings', 'updated_by')) {
+                $updatedById = property_exists($meeting, 'updated_by') ? $meeting->updated_by : null;
+                if ($updatedById) {
+                    $updatedBy = DB::table('users')->where('id', $updatedById)->first();
+                }
+            }
+
+            // Convert to object for view compatibility
+            $meeting = (object) $meeting;
+            $minutes = $minutes ? (object) $minutes : null;
+
+            return view('modules.meetings.show', compact(
+                'meeting', 
+                'canEdit', 
+                'canApprove', 
+                'participants', 
+                'staffParticipants',
+                'externalParticipants',
+                'agendas', 
+                'minutes',
+                'approvalHistory',
+                'stats',
+                'updatedBy'
+            ));
+        } catch (\Exception $e) {
+            Log::error('Error loading meeting show page: ' . $e->getMessage(), [
+                'meeting_id' => $id,
+                'user_id' => Auth::id(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return redirect()->route('modules.meetings.index')
+                ->with('error', 'Failed to load meeting details: ' . $e->getMessage());
         }
-
-        // Convert to object for view compatibility
-        $meeting = (object) $meeting;
-        $minutes = $minutes ? (object) $minutes : null;
-
-        return view('modules.meetings.show', compact(
-            'meeting', 
-            'canEdit', 
-            'canApprove', 
-            'participants', 
-            'staffParticipants',
-            'externalParticipants',
-            'agendas', 
-            'minutes',
-            'approvalHistory',
-            'stats',
-            'updatedBy'
-        ));
     }
 
     /**
