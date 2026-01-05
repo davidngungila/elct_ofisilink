@@ -796,7 +796,41 @@ class MeetingController extends Controller
             'canApproveMeetings'
         ));
     }
-    public function analytics() { return view('modules.meetings.analytics'); }
+    /**
+     * Display meeting analytics page.
+     */
+    public function analytics(Request $request)
+    {
+        $user = Auth::user();
+        
+        // Get user's branch
+        $userBranchId = $user->branch_id ?? null;
+        
+        // Get selected branch from request
+        $selectedBranchId = $request->input('branch_id', $userBranchId);
+        
+        // Get all branches for dropdown
+        $branches = Branch::where('is_active', true)->orderBy('name')->get();
+        
+        // Check if user can view all branches
+        $canViewAll = $user->hasAnyRole(['System Admin', 'General Manager', 'HR Officer']);
+        
+        // Initialize default stats (will be loaded via AJAX)
+        $stats = [
+            'total' => 0,
+            'upcoming' => 0,
+            'completed' => 0,
+            'cancelled' => 0,
+            'pending_approval' => 0,
+        ];
+        
+        return view('modules.meetings.analytics', compact(
+            'branches',
+            'selectedBranchId',
+            'canViewAll',
+            'stats'
+        ));
+    }
     public function categories() { return view('modules.meetings.categories'); }
     public function minutes($id) { return view('modules.meetings.minutes'); }
     /**
