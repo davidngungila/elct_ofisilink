@@ -508,7 +508,13 @@ class EmailService
             return 'For Gmail: Use port 587 (TLS) or 465 (SSL). Check firewall settings. Verify app password is correct.';
         }
         
-        return "Check firewall settings for port {$port}, verify host '{$host}' is correct, and ensure SMTP service is running.";
+        // Detect localhost and provide production guidance
+        $hostLower = strtolower(trim($host));
+        if (in_array($hostLower, ['127.0.0.1', 'localhost', '::1', '0.0.0.0'])) {
+            return "You're using localhost ({$host}) which won't work in production. For production, use a real SMTP server like smtp.gmail.com (Gmail), smtp-mail.outlook.com (Outlook), or your hosting provider's SMTP server. Check firewall settings for port {$port} and ensure SMTP service is running.";
+        }
+        
+        return "Check firewall settings for port {$port}, verify host '{$host}' is correct, and ensure SMTP service is running. For production environments, use a real SMTP server (not localhost).";
     }
     
     /**

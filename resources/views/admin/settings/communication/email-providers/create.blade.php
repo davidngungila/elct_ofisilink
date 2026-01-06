@@ -270,6 +270,29 @@ function testEmailProvider() {
         return;
     }
     
+    // Validate host is not localhost for production
+    const hostLower = formData.mail_host.toLowerCase().trim();
+    if (hostLower === '127.0.0.1' || hostLower === 'localhost' || hostLower === '::1' || hostLower === '0.0.0.0') {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Localhost Detected',
+            html: `
+                <p><strong>You're using localhost (${formData.mail_host})</strong> which won't work in production.</p>
+                <p class="text-start mt-3"><strong>For production, use:</strong></p>
+                <ul class="text-start">
+                    <li><strong>Gmail:</strong> smtp.gmail.com (Port: 587 with TLS or 465 with SSL)</li>
+                    <li><strong>Outlook/Hotmail:</strong> smtp-mail.outlook.com (Port: 587 with TLS)</li>
+                    <li><strong>Yahoo:</strong> smtp.mail.yahoo.com (Port: 587 with TLS)</li>
+                    <li><strong>Custom SMTP:</strong> Your provider's SMTP server address</li>
+                </ul>
+                <p class="text-muted small mt-3">Please update the SMTP Host field with a valid production SMTP server.</p>
+            `,
+            confirmButtonText: 'OK',
+            width: '600px'
+        });
+        return;
+    }
+    
     // Update connection status
     document.getElementById('connectionStatus').innerHTML = `
         <div class="spinner-border spinner-border-sm text-primary" role="status">
@@ -307,7 +330,7 @@ function testEmailProvider() {
             mail_password: formData.mail_password,
             mail_from_address: formData.mail_from_address || formData.mail_username,
             mail_from_name: formData.mail_from_name || 'OfisiLink System',
-            test_email: testEmail
+            email: testEmail
         })
     })
     .then(res => res.json())
@@ -341,13 +364,41 @@ function testEmailProvider() {
             `;
             
             document.getElementById('testResult').style.display = 'block';
-            document.getElementById('testResultContent').innerHTML = `
+            
+            // Enhanced error message with production guidance
+            let errorHtml = `
                 <div class="alert alert-danger mb-0">
                     <i class="bx bx-x-circle me-2"></i>
                     <strong>Failed!</strong> ${data.message || 'Could not send test email'}
-                    ${data.suggestion ? '<br><small class="text-muted">' + data.suggestion + '</small>' : ''}
-                </div>
             `;
+            
+            if (data.error) {
+                errorHtml += `<br><small class="text-muted"><strong>Error:</strong> ${data.error}</small>`;
+            }
+            
+            if (data.suggestion) {
+                errorHtml += `<br><small class="text-muted mt-2 d-block"><strong>Suggestion:</strong> ${data.suggestion}</small>`;
+            }
+            
+            // Add production-specific guidance for connection errors
+            if (data.error && (data.error.includes('Connection refused') || data.error.includes('Connection failed') || data.error.includes('Error 111'))) {
+                errorHtml += `
+                    <hr class="my-2">
+                    <div class="mt-2">
+                        <strong class="d-block mb-2">For Production Setup:</strong>
+                        <ul class="small mb-0 text-start">
+                            <li>Use a real SMTP server (not localhost/127.0.0.1)</li>
+                            <li>Common providers: Gmail (smtp.gmail.com), Outlook (smtp-mail.outlook.com)</li>
+                            <li>Ensure firewall allows outbound connections on SMTP port</li>
+                            <li>Verify server can reach the SMTP server</li>
+                            <li>Check if your hosting provider blocks SMTP ports</li>
+                        </ul>
+                    </div>
+                `;
+            }
+            
+            errorHtml += `</div>`;
+            document.getElementById('testResultContent').innerHTML = errorHtml;
         }
     })
     .catch(err => {
