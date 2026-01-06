@@ -42,6 +42,9 @@
                             <a href="{{ route('payroll.deductions.index') }}" class="btn btn-light btn-lg shadow-sm">
                                 <i class="bx bx-money-withdraw me-2"></i>Manage Deductions
                             </a>
+                            <a href="{{ route('payroll.formulas.index') }}" class="btn btn-light btn-lg shadow-sm">
+                                <i class="bx bx-calculator me-2"></i>Manage Formulas
+                            </a>
                             <a href="{{ route('payroll.overtime.index') }}" class="btn btn-light btn-lg shadow-sm">
                                 <i class="bx bx-time-five me-2"></i>Manage Overtime
                             </a>

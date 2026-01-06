@@ -2438,20 +2438,61 @@ class PayrollController extends Controller
             ->groupBy('deduction_type')
             ->get();
 
-        // Load payroll formulas
-        $formulas = \App\Models\PayrollFormula::where('is_active', true)
-            ->orderBy('formula_type')
-            ->get();
-
         return view('modules.hr.deduction-management', compact(
             'employees', 
             'totalEmployees', 
             'employeesWithDeductions', 
             'totalMonthlyDeductions', 
             'totalOneTimeDeductions',
-            'deductionTypes',
-            'formulas'
+            'deductionTypes'
         ));
+    }
+
+    /**
+     * Show Payroll Formulas Management Page
+     */
+    public function showFormulasManagement(Request $request)
+    {
+        $user = Auth::user();
+        $can_manage_formulas = $user->hasAnyRole(['HR Officer', 'System Admin']);
+        
+        if (!$can_manage_formulas) {
+            abort(403, 'You do not have permission to manage payroll formulas.');
+        }
+
+        // Load all formulas
+        $formulas = \App\Models\PayrollFormula::where('is_active', true)
+            ->orderBy('formula_type')
+            ->get();
+
+        // Get statistics
+        $totalFormulas = $formulas->count();
+        $lockedFormulas = $formulas->where('is_locked', true)->count();
+        $unlockedFormulas = $formulas->where('is_locked', false)->count();
+
+        return view('modules.hr.formulas-management', compact(
+            'formulas',
+            'totalFormulas',
+            'lockedFormulas',
+            'unlockedFormulas'
+        ));
+    }
+
+    /**
+     * Show individual formula detail/edit page
+     */
+    public function showFormulaDetail($formulaId)
+    {
+        $user = Auth::user();
+        $can_manage_formulas = $user->hasAnyRole(['HR Officer', 'System Admin']);
+        
+        if (!$can_manage_formulas) {
+            abort(403, 'You do not have permission to manage payroll formulas.');
+        }
+
+        $formula = \App\Models\PayrollFormula::findOrFail($formulaId);
+
+        return view('modules.hr.formula-detail', compact('formula'));
     }
 
     /**
