@@ -82,6 +82,201 @@
         </div>
     </div>
 
+    <!-- Communication Settings Overview -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="bx bx-cog me-2"></i>Communication Settings (SMS & Email)
+                    </h5>
+                    <p class="text-muted mb-0 mt-2">Manage multiple SMS and Email providers. The primary provider is used first for all system notifications.</p>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Email Providers List -->
+                        <div class="col-lg-6 mb-4 mb-lg-0">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="mb-0 fw-bold">
+                                    <i class="bx bx-envelope text-danger me-2"></i>Email (SMTP) Providers
+                                </h6>
+                                <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#addEmailProviderModal">
+                                    <i class="bx bx-plus me-1"></i>Add Provider
+                                </button>
+                            </div>
+                            <div class="list-group">
+                                @forelse($emailProviders ?? [] as $provider)
+                                <div class="list-group-item {{ $provider->is_primary ? 'border-primary border-2' : '' }}">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex align-items-center mb-2">
+                                                @if($provider->is_primary)
+                                                    <span class="badge bg-primary me-2">
+                                                        <i class="bx bx-star"></i> Primary
+                                                    </span>
+                                                @endif
+                                                @if($provider->is_active)
+                                                    <span class="badge bg-success me-2">Active</span>
+                                                @else
+                                                    <span class="badge bg-secondary me-2">Inactive</span>
+                                                @endif
+                                                <strong>{{ $provider->name }}</strong>
+                                            </div>
+                                            <div class="small text-muted mb-1">
+                                                <i class="bx bx-server"></i> {{ $provider->mail_host ?? 'N/A' }}:{{ $provider->mail_port ?? 'N/A' }}
+                                                <span class="badge bg-info ms-2">{{ strtoupper($provider->mail_encryption ?? 'N/A') }}</span>
+                                            </div>
+                                            <div class="small text-muted mb-1">
+                                                <i class="bx bx-user"></i> {{ $provider->mail_username ? Str::limit($provider->mail_username, 40) : 'N/A' }}
+                                            </div>
+                                            @if($provider->description)
+                                                <div class="small text-muted">{{ Str::limit($provider->description, 60) }}</div>
+                                            @endif
+                                            @if($provider->last_tested_at)
+                                                <div class="small mt-1">
+                                                    <i class="bx bx-time"></i> Last tested: {{ $provider->last_tested_at->diffForHumans() }}
+                                                    @if($provider->last_test_status !== null)
+                                                        @if($provider->last_test_status)
+                                                            <span class="badge bg-success ms-1">Success</span>
+                                                        @else
+                                                            <span class="badge bg-danger ms-1">Failed</span>
+                                                        @endif
+                                                    @endif
+                                                </div>
+                                            @endif
+                                        </div>
+                                        <div class="btn-group btn-group-sm ms-2">
+                                            <button class="btn btn-outline-primary" 
+                                                    onclick="testProviderConnection({{ $provider->id }}, 'email')"
+                                                    title="Test Connection">
+                                                <i class="bx bx-refresh"></i>
+                                            </button>
+                                            <button class="btn btn-outline-info" 
+                                                    onclick="editEmailProvider({{ $provider->id }})"
+                                                    title="Edit">
+                                                <i class="bx bx-edit"></i>
+                                            </button>
+                                            @if(!$provider->is_primary)
+                                                <button class="btn btn-outline-success" 
+                                                        onclick="setPrimaryProvider({{ $provider->id }})"
+                                                        title="Set as Primary">
+                                                    <i class="bx bx-star"></i>
+                                                </button>
+                                                <button class="btn btn-outline-danger" 
+                                                        onclick="deleteProvider({{ $provider->id }})"
+                                                        title="Delete">
+                                                    <i class="bx bx-trash"></i>
+                                                </button>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+                                @empty
+                                <div class="list-group-item text-center py-4">
+                                    <i class="bx bx-inbox fs-1 text-muted mb-2"></i>
+                                    <p class="text-muted mb-2">No email providers configured.</p>
+                                    <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#addEmailProviderModal">
+                                        <i class="bx bx-plus me-1"></i>Add Email Provider
+                                    </button>
+                                </div>
+                                @endforelse
+                            </div>
+                        </div>
+
+                        <!-- SMS Providers List -->
+                        <div class="col-lg-6">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="mb-0 fw-bold">
+                                    <i class="bx bx-message-rounded-dots text-primary me-2"></i>SMS Gateway Providers
+                                </h6>
+                                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addSmsProviderModal">
+                                    <i class="bx bx-plus me-1"></i>Add Provider
+                                </button>
+                            </div>
+                            <div class="list-group">
+                                @forelse($smsProviders ?? [] as $provider)
+                                <div class="list-group-item {{ $provider->is_primary ? 'border-primary border-2' : '' }}">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex align-items-center mb-2">
+                                                @if($provider->is_primary)
+                                                    <span class="badge bg-primary me-2">
+                                                        <i class="bx bx-star"></i> Primary
+                                                    </span>
+                                                @endif
+                                                @if($provider->is_active)
+                                                    <span class="badge bg-success me-2">Active</span>
+                                                @else
+                                                    <span class="badge bg-secondary me-2">Inactive</span>
+                                                @endif
+                                                <strong>{{ $provider->name }}</strong>
+                                            </div>
+                                            <div class="small text-muted mb-1">
+                                                <i class="bx bx-link"></i> {{ Str::limit($provider->sms_url ?? 'N/A', 50) }}
+                                            </div>
+                                            <div class="small text-muted mb-1">
+                                                <i class="bx bx-user"></i> {{ $provider->sms_username ? Str::limit($provider->sms_username, 30) : 'N/A' }}
+                                                <span class="ms-2">From: {{ $provider->sms_from ?? 'N/A' }}</span>
+                                            </div>
+                                            @if($provider->description)
+                                                <div class="small text-muted">{{ Str::limit($provider->description, 60) }}</div>
+                                            @endif
+                                            @if($provider->last_tested_at)
+                                                <div class="small mt-1">
+                                                    <i class="bx bx-time"></i> Last tested: {{ $provider->last_tested_at->diffForHumans() }}
+                                                    @if($provider->last_test_status !== null)
+                                                        @if($provider->last_test_status)
+                                                            <span class="badge bg-success ms-1">Success</span>
+                                                        @else
+                                                            <span class="badge bg-danger ms-1">Failed</span>
+                                                        @endif
+                                                    @endif
+                                                </div>
+                                            @endif
+                                        </div>
+                                        <div class="btn-group btn-group-sm ms-2">
+                                            <button class="btn btn-outline-primary" 
+                                                    onclick="testProviderConnection({{ $provider->id }}, 'sms')"
+                                                    title="Test Connection">
+                                                <i class="bx bx-refresh"></i>
+                                            </button>
+                                            <button class="btn btn-outline-info" 
+                                                    onclick="editSmsProvider({{ $provider->id }})"
+                                                    title="Edit">
+                                                <i class="bx bx-edit"></i>
+                                            </button>
+                                            @if(!$provider->is_primary)
+                                                <button class="btn btn-outline-success" 
+                                                        onclick="setPrimaryProvider({{ $provider->id }})"
+                                                        title="Set as Primary">
+                                                    <i class="bx bx-star"></i>
+                                                </button>
+                                                <button class="btn btn-outline-danger" 
+                                                        onclick="deleteProvider({{ $provider->id }})"
+                                                        title="Delete">
+                                                    <i class="bx bx-trash"></i>
+                                                </button>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </div>
+                                @empty
+                                <div class="list-group-item text-center py-4">
+                                    <i class="bx bx-inbox fs-1 text-muted mb-2"></i>
+                                    <p class="text-muted mb-2">No SMS providers configured.</p>
+                                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addSmsProviderModal">
+                                        <i class="bx bx-plus me-1"></i>Add SMS Provider
+                                    </button>
+                                </div>
+                                @endforelse
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Connection Status -->
     <div class="row mb-4">
         <div class="col-md-6">
@@ -90,7 +285,7 @@
                     <div class="mb-3">
                         <i class="bx bx-message-rounded-dots fs-1 text-primary"></i>
                     </div>
-                    <h5 class="mb-2">SMS Service</h5>
+                    <h5 class="mb-2">SMS Service Status</h5>
                     <div id="smsStatus" class="status-badge status-checking mb-2">
                         <i class="bx bx-loader bx-spin me-1"></i>Checking...
                     </div>
@@ -106,7 +301,7 @@
                     <div class="mb-3">
                         <i class="bx bx-envelope fs-1 text-danger"></i>
                     </div>
-                    <h5 class="mb-2">Email Service</h5>
+                    <h5 class="mb-2">Email Service Status</h5>
                     <div id="emailStatus" class="status-badge status-checking mb-2">
                         <i class="bx bx-loader bx-spin me-1"></i>Checking...
                     </div>
@@ -305,228 +500,6 @@
             </div>
         </div>
     </form>
-
-    <!-- Configured Email Providers -->
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0 fw-bold">
-                        <i class="bx bx-envelope me-2 text-danger"></i>Configured Email Accounts
-                    </h5>
-                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addEmailProviderModal">
-                        <i class="bx bx-plus me-1"></i>Add Email Provider
-                    </button>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Host</th>
-                                    <th>Port</th>
-                                    <th>Username</th>
-                                    <th>Status</th>
-                                    <th>Last Test</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($emailProviders ?? [] as $provider)
-                                <tr>
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            @if($provider->is_primary)
-                                                <span class="badge bg-primary me-2">Primary</span>
-                                            @endif
-                                            <strong>{{ $provider->name }}</strong>
-                                        </div>
-                                        @if($provider->description)
-                                            <small class="text-muted d-block">{{ Str::limit($provider->description, 50) }}</small>
-                                        @endif
-                                    </td>
-                                    <td>{{ $provider->mail_host ?? 'N/A' }}</td>
-                                    <td>{{ $provider->mail_port ?? 'N/A' }}</td>
-                                    <td>{{ $provider->mail_username ? Str::limit($provider->mail_username, 30) : 'N/A' }}</td>
-                                    <td>
-                                        @if($provider->is_active)
-                                            <span class="badge bg-success">Active</span>
-                                        @else
-                                            <span class="badge bg-secondary">Inactive</span>
-                                        @endif
-                                    </td>
-                                    <td>
-                                        @if($provider->last_tested_at)
-                                            <div>{{ $provider->last_tested_at->format('M j, Y') }}</div>
-                                            <small class="text-muted">{{ $provider->last_tested_at->format('g:i A') }}</small>
-                                            @if($provider->last_test_status)
-                                                <span class="badge bg-success ms-1">Success</span>
-                                            @else
-                                                <span class="badge bg-danger ms-1">Failed</span>
-                                            @endif
-                                        @else
-                                            <span class="text-muted">Never tested</span>
-                                        @endif
-                                    </td>
-                                    <td>
-                                        <div class="btn-group btn-group-sm">
-                                            <button class="btn btn-outline-primary" 
-                                                    onclick="testProviderConnection({{ $provider->id }}, 'email')"
-                                                    title="Test Connection">
-                                                <i class="bx bx-refresh"></i>
-                                            </button>
-                                            <button class="btn btn-outline-info" 
-                                                    onclick="editEmailProvider({{ $provider->id }})"
-                                                    title="Edit">
-                                                <i class="bx bx-edit"></i>
-                                            </button>
-                                            @if(!$provider->is_primary)
-                                                <button class="btn btn-outline-success" 
-                                                        onclick="setPrimaryProvider({{ $provider->id }})"
-                                                        title="Set as Primary">
-                                                    <i class="bx bx-star"></i>
-                                                </button>
-                                                <button class="btn btn-outline-danger" 
-                                                        onclick="deleteProvider({{ $provider->id }})"
-                                                        title="Delete">
-                                                    <i class="bx bx-trash"></i>
-                                                </button>
-                                            @endif
-                                        </div>
-                                    </td>
-                                </tr>
-                                @empty
-                                <tr>
-                                    <td colspan="7" class="text-center py-5">
-                                        <div class="text-muted">
-                                            <i class="bx bx-inbox fs-1"></i>
-                                            <p class="mt-2 mb-0">No email providers configured.</p>
-                                            <button class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#addEmailProviderModal">
-                                                <i class="bx bx-plus me-1"></i>Add Email Provider
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Configured SMS Providers -->
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0 fw-bold">
-                        <i class="bx bx-message-rounded-dots me-2 text-primary"></i>Configured SMS Gateways
-                    </h5>
-                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addSmsProviderModal">
-                        <i class="bx bx-plus me-1"></i>Add SMS Provider
-                    </button>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Name</th>
-                                    <th>URL</th>
-                                    <th>Username</th>
-                                    <th>From</th>
-                                    <th>Status</th>
-                                    <th>Last Test</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($smsProviders ?? [] as $provider)
-                                <tr>
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            @if($provider->is_primary)
-                                                <span class="badge bg-primary me-2">Primary</span>
-                                            @endif
-                                            <strong>{{ $provider->name }}</strong>
-                                        </div>
-                                        @if($provider->description)
-                                            <small class="text-muted d-block">{{ Str::limit($provider->description, 50) }}</small>
-                                        @endif
-                                    </td>
-                                    <td>{{ Str::limit($provider->sms_url ?? 'N/A', 40) }}</td>
-                                    <td>{{ $provider->sms_username ? Str::limit($provider->sms_username, 20) : 'N/A' }}</td>
-                                    <td>{{ $provider->sms_from ?? 'N/A' }}</td>
-                                    <td>
-                                        @if($provider->is_active)
-                                            <span class="badge bg-success">Active</span>
-                                        @else
-                                            <span class="badge bg-secondary">Inactive</span>
-                                        @endif
-                                    </td>
-                                    <td>
-                                        @if($provider->last_tested_at)
-                                            <div>{{ $provider->last_tested_at->format('M j, Y') }}</div>
-                                            <small class="text-muted">{{ $provider->last_tested_at->format('g:i A') }}</small>
-                                            @if($provider->last_test_status)
-                                                <span class="badge bg-success ms-1">Success</span>
-                                            @else
-                                                <span class="badge bg-danger ms-1">Failed</span>
-                                            @endif
-                                        @else
-                                            <span class="text-muted">Never tested</span>
-                                        @endif
-                                    </td>
-                                    <td>
-                                        <div class="btn-group btn-group-sm">
-                                            <button class="btn btn-outline-primary" 
-                                                    onclick="testProviderConnection({{ $provider->id }}, 'sms')"
-                                                    title="Test Connection">
-                                                <i class="bx bx-refresh"></i>
-                                            </button>
-                                            <button class="btn btn-outline-info" 
-                                                    onclick="editSmsProvider({{ $provider->id }})"
-                                                    title="Edit">
-                                                <i class="bx bx-edit"></i>
-                                            </button>
-                                            @if(!$provider->is_primary)
-                                                <button class="btn btn-outline-success" 
-                                                        onclick="setPrimaryProvider({{ $provider->id }})"
-                                                        title="Set as Primary">
-                                                    <i class="bx bx-star"></i>
-                                                </button>
-                                                <button class="btn btn-outline-danger" 
-                                                        onclick="deleteProvider({{ $provider->id }})"
-                                                        title="Delete">
-                                                    <i class="bx bx-trash"></i>
-                                                </button>
-                                            @endif
-                                        </div>
-                                    </td>
-                                </tr>
-                                @empty
-                                <tr>
-                                    <td colspan="7" class="text-center py-5">
-                                        <div class="text-muted">
-                                            <i class="bx bx-message-rounded-dots fs-1"></i>
-                                            <p class="mt-2 mb-0">No SMS providers configured.</p>
-                                            <button class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#addSmsProviderModal">
-                                                <i class="bx bx-plus me-1"></i>Add SMS Provider
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 
 <!-- Add Email Provider Modal -->
