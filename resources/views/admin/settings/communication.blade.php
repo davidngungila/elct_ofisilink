@@ -114,16 +114,17 @@
                             <table class="table table-hover table-bordered">
                                 <thead class="table-light">
                                     <tr>
-                                        <th width="50">#</th>
-                                        <th>Provider Name</th>
-                                        <th>Host & Port</th>
-                                        <th>Encryption</th>
-                                        <th>Username</th>
-                                        <th>From Address</th>
-                                        <th>Status</th>
-                                        <th>Priority</th>
-                                        <th>Last Test</th>
-                                        <th width="200" class="text-center">Actions</th>
+                                        <th width="40">#</th>
+                                        <th width="200">Provider Name</th>
+                                        <th width="150">Host & Port</th>
+                                        <th width="100">Encryption</th>
+                                        <th width="180">Username</th>
+                                        <th width="180">From Address</th>
+                                        <th width="100">From Name</th>
+                                        <th width="80">Status</th>
+                                        <th width="80">Priority</th>
+                                        <th width="150">Last Test</th>
+                                        <th width="280" class="text-center">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -157,6 +158,9 @@
                                             <small>{{ $provider->mail_from_address ? Str::limit($provider->mail_from_address, 30) : 'N/A' }}</small>
                                         </td>
                                         <td>
+                                            <small>{{ $provider->mail_from_name ? Str::limit($provider->mail_from_name, 25) : 'N/A' }}</small>
+                                        </td>
+                                        <td>
                                             @if($provider->is_active)
                                                 <span class="badge bg-success">Active</span>
                                             @else
@@ -184,39 +188,53 @@
                                             @endif
                                         </td>
                                         <td>
-                                            <div class="btn-group btn-group-sm" role="group">
-                                                <button class="btn btn-outline-primary" 
-                                                        onclick="testProviderConnection({{ $provider->id }}, 'email')"
-                                                        title="Test Connection">
-                                                    <i class="bx bx-refresh"></i> Test
-                                                </button>
-                                                <button class="btn btn-outline-info" 
-                                                        onclick="editEmailProvider({{ $provider->id }})"
-                                                        title="Edit Provider">
-                                                    <i class="bx bx-edit"></i> Edit
-                                                </button>
-                                                @if(!$provider->is_primary)
-                                                    <button class="btn btn-outline-success" 
-                                                            onclick="setPrimaryProvider({{ $provider->id }})"
-                                                            title="Set as Primary">
-                                                        <i class="bx bx-star"></i> Primary
+                                            <div class="btn-group-vertical btn-group-sm" role="group">
+                                                <div class="btn-group" role="group">
+                                                    <button class="btn btn-outline-primary btn-sm" 
+                                                            onclick="testProviderConnection({{ $provider->id }}, 'email')"
+                                                            title="Test Connection">
+                                                        <i class="bx bx-refresh"></i> Test
                                                     </button>
-                                                    <button class="btn btn-outline-danger" 
-                                                            onclick="deleteProvider({{ $provider->id }})"
-                                                            title="Delete Provider">
-                                                        <i class="bx bx-trash"></i> Delete
+                                                    <button class="btn btn-outline-info btn-sm" 
+                                                            onclick="editEmailProvider({{ $provider->id }})"
+                                                            title="Edit Provider">
+                                                        <i class="bx bx-edit"></i> Edit
                                                     </button>
-                                                @else
-                                                    <button class="btn btn-outline-secondary" disabled title="This is the primary provider">
-                                                        <i class="bx bx-lock"></i> Primary
-                                                    </button>
-                                                @endif
+                                                </div>
+                                                <div class="btn-group mt-1" role="group">
+                                                    @if(!$provider->is_primary)
+                                                        <button class="btn btn-outline-success btn-sm" 
+                                                                onclick="setPrimaryProvider({{ $provider->id }})"
+                                                                title="Set as Primary">
+                                                            <i class="bx bx-star"></i> Set Primary
+                                                        </button>
+                                                        <button class="btn btn-outline-warning btn-sm" 
+                                                                onclick="toggleProviderStatus({{ $provider->id }})"
+                                                                title="{{ $provider->is_active ? 'Deactivate' : 'Activate' }}">
+                                                            <i class="bx bx-{{ $provider->is_active ? 'pause' : 'play' }}"></i> {{ $provider->is_active ? 'Deactivate' : 'Activate' }}
+                                                        </button>
+                                                        <button class="btn btn-outline-danger btn-sm" 
+                                                                onclick="deleteProvider({{ $provider->id }})"
+                                                                title="Delete Provider">
+                                                            <i class="bx bx-trash"></i> Delete
+                                                        </button>
+                                                    @else
+                                                        <button class="btn btn-outline-secondary btn-sm" disabled title="This is the primary provider">
+                                                            <i class="bx bx-lock"></i> Primary
+                                                        </button>
+                                                        <button class="btn btn-outline-warning btn-sm" 
+                                                                onclick="toggleProviderStatus({{ $provider->id }})"
+                                                                title="{{ $provider->is_active ? 'Deactivate' : 'Activate' }}">
+                                                            <i class="bx bx-{{ $provider->is_active ? 'pause' : 'play' }}"></i> {{ $provider->is_active ? 'Deactivate' : 'Activate' }}
+                                                        </button>
+                                                    @endif
+                                                </div>
                                             </div>
                                         </td>
                                     </tr>
                                     @empty
                                     <tr>
-                                        <td colspan="10" class="text-center py-5">
+                                        <td colspan="11" class="text-center py-5">
                                             <div class="text-muted">
                                                 <i class="bx bx-inbox fs-1 d-block mb-2"></i>
                                                 <p class="mb-2">No email providers configured.</p>
@@ -308,33 +326,47 @@
                                             @endif
                                         </td>
                                         <td>
-                                            <div class="btn-group btn-group-sm" role="group">
-                                                <button class="btn btn-outline-primary" 
-                                                        onclick="testProviderConnection({{ $provider->id }}, 'sms')"
-                                                        title="Test Connection">
-                                                    <i class="bx bx-refresh"></i> Test
-                                                </button>
-                                                <button class="btn btn-outline-info" 
-                                                        onclick="editSmsProvider({{ $provider->id }})"
-                                                        title="Edit Provider">
-                                                    <i class="bx bx-edit"></i> Edit
-                                                </button>
-                                                @if(!$provider->is_primary)
-                                                    <button class="btn btn-outline-success" 
-                                                            onclick="setPrimaryProvider({{ $provider->id }})"
-                                                            title="Set as Primary">
-                                                        <i class="bx bx-star"></i> Primary
+                                            <div class="btn-group-vertical btn-group-sm" role="group">
+                                                <div class="btn-group" role="group">
+                                                    <button class="btn btn-outline-primary btn-sm" 
+                                                            onclick="testProviderConnection({{ $provider->id }}, 'sms')"
+                                                            title="Test Connection">
+                                                        <i class="bx bx-refresh"></i> Test
                                                     </button>
-                                                    <button class="btn btn-outline-danger" 
-                                                            onclick="deleteProvider({{ $provider->id }})"
-                                                            title="Delete Provider">
-                                                        <i class="bx bx-trash"></i> Delete
+                                                    <button class="btn btn-outline-info btn-sm" 
+                                                            onclick="editSmsProvider({{ $provider->id }})"
+                                                            title="Edit Provider">
+                                                        <i class="bx bx-edit"></i> Edit
                                                     </button>
-                                                @else
-                                                    <button class="btn btn-outline-secondary" disabled title="This is the primary provider">
-                                                        <i class="bx bx-lock"></i> Primary
-                                                    </button>
-                                                @endif
+                                                </div>
+                                                <div class="btn-group mt-1" role="group">
+                                                    @if(!$provider->is_primary)
+                                                        <button class="btn btn-outline-success btn-sm" 
+                                                                onclick="setPrimaryProvider({{ $provider->id }})"
+                                                                title="Set as Primary">
+                                                            <i class="bx bx-star"></i> Set Primary
+                                                        </button>
+                                                        <button class="btn btn-outline-warning btn-sm" 
+                                                                onclick="toggleProviderStatus({{ $provider->id }})"
+                                                                title="{{ $provider->is_active ? 'Deactivate' : 'Activate' }}">
+                                                            <i class="bx bx-{{ $provider->is_active ? 'pause' : 'play' }}"></i> {{ $provider->is_active ? 'Deactivate' : 'Activate' }}
+                                                        </button>
+                                                        <button class="btn btn-outline-danger btn-sm" 
+                                                                onclick="deleteProvider({{ $provider->id }})"
+                                                                title="Delete Provider">
+                                                            <i class="bx bx-trash"></i> Delete
+                                                        </button>
+                                                    @else
+                                                        <button class="btn btn-outline-secondary btn-sm" disabled title="This is the primary provider">
+                                                            <i class="bx bx-lock"></i> Primary
+                                                        </button>
+                                                        <button class="btn btn-outline-warning btn-sm" 
+                                                                onclick="toggleProviderStatus({{ $provider->id }})"
+                                                                title="{{ $provider->is_active ? 'Deactivate' : 'Activate' }}">
+                                                            <i class="bx bx-{{ $provider->is_active ? 'pause' : 'play' }}"></i> {{ $provider->is_active ? 'Deactivate' : 'Activate' }}
+                                                        </button>
+                                                    @endif
+                                                </div>
                                             </div>
                                         </td>
                                     </tr>
@@ -1714,6 +1746,57 @@ function editSmsProvider(providerId) {
         title: 'Edit Provider',
         text: 'Edit functionality will be implemented. For now, please delete and recreate the provider.',
         confirmButtonText: 'OK'
+    });
+}
+
+// Toggle Provider Status (Activate/Deactivate)
+function toggleProviderStatus(providerId) {
+    Swal.fire({
+        title: 'Are you sure?',
+        text: 'Do you want to toggle the provider status?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, toggle it!'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch(`/admin/settings/notification-providers/${providerId}/toggle-status`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success!',
+                        text: data.message || 'Provider status updated successfully',
+                        confirmButtonText: 'OK'
+                    }).then(() => {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        text: data.message || 'Failed to update provider status',
+                        confirmButtonText: 'OK'
+                    });
+                }
+            })
+            .catch(error => {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error!',
+                    text: 'An error occurred while updating provider status',
+                    confirmButtonText: 'OK'
+                });
+            });
+        }
     });
 }
 </script>

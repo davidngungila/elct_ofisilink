@@ -34,7 +34,7 @@
 
 @section('content')
 
-@include('admin.settings-partials.communication')
+@include('admin.settings.communication')
 
 @endsection
 

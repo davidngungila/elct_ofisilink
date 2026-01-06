@@ -1152,6 +1152,7 @@ Route::prefix('api/v1')->name('api.v1.')->group(function () {
         Route::put('settings/notification-providers/{provider}', [SettingsController::class, 'updateNotificationProvider'])->name('admin.settings.notification-providers.update');
         Route::delete('settings/notification-providers/{provider}', [SettingsController::class, 'deleteNotificationProvider'])->name('admin.settings.notification-providers.delete');
         Route::post('settings/notification-providers/{provider}/set-primary', [SettingsController::class, 'setPrimaryProvider'])->name('admin.settings.notification-providers.set-primary');
+        Route::post('settings/notification-providers/{provider}/toggle-status', [SettingsController::class, 'toggleProviderStatus'])->name('admin.settings.notification-providers.toggle-status');
         Route::post('settings/notification-providers/{provider}/test', [SettingsController::class, 'testNotificationProvider'])->name('admin.settings.notification-providers.test');
         
         // Activity Log

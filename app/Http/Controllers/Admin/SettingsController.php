@@ -1772,6 +1772,30 @@ class SettingsController extends Controller
     }
 
     /**
+     * Toggle provider status (activate/deactivate)
+     */
+    public function toggleProviderStatus(NotificationProvider $provider)
+    {
+        try {
+            $provider->is_active = !$provider->is_active;
+            $provider->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => $provider->is_active 
+                    ? 'Provider activated successfully' 
+                    : 'Provider deactivated successfully',
+                'provider' => $provider
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to toggle provider status: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Test notification provider
      */
     public function testNotificationProvider(Request $request, NotificationProvider $provider)
