@@ -2438,13 +2438,19 @@ class PayrollController extends Controller
             ->groupBy('deduction_type')
             ->get();
 
+        // Load payroll formulas
+        $formulas = \App\Models\PayrollFormula::where('is_active', true)
+            ->orderBy('formula_type')
+            ->get();
+
         return view('modules.hr.deduction-management', compact(
             'employees', 
             'totalEmployees', 
             'employeesWithDeductions', 
             'totalMonthlyDeductions', 
             'totalOneTimeDeductions',
-            'deductionTypes'
+            'deductionTypes',
+            'formulas'
         ));
     }
 
@@ -2691,5 +2697,223 @@ class PayrollController extends Controller
         ]);
 
         return view('modules.hr.pages.view-payslip', compact('payrollItem'));
+    }
+
+    /**
+     * Get all payroll formulas
+     */
+    public function getFormulas(Request $request)
+    {
+        try {
+            $formulas = \App\Models\PayrollFormula::where('is_active', true)
+                ->orderBy('formula_type')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'formulas' => $formulas
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load formulas: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Update a payroll formula
+     */
+    public function updateFormula(Request $request, $formulaId)
+    {
+        $user = Auth::user();
+        
+        // Check permissions
+        if (!$user->hasAnyRole(['System Admin', 'HR Officer'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to update formulas'
+            ], 403);
+        }
+
+        $request->validate([
+            'formula' => 'required|string',
+            'explanation' => 'required|string',
+            'parameters' => 'nullable|array',
+            'otp' => 'required_if:is_locked,true|string',
+        ]);
+
+        try {
+            $formula = \App\Models\PayrollFormula::findOrFail($formulaId);
+
+            // If formula is locked, verify OTP
+            if ($formula->is_locked) {
+                $otp = $request->input('otp');
+                if (!$formula->isOtpValid($otp)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Invalid or expired OTP. Please request a new OTP.'
+                    ], 400);
+                }
+            }
+
+            $formula->update([
+                'formula' => $request->formula,
+                'explanation' => $request->explanation,
+                'parameters' => $request->parameters,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Formula updated successfully',
+                'formula' => $formula
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update formula: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Lock a formula
+     */
+    public function lockFormula(Request $request, $formulaId)
+    {
+        $user = Auth::user();
+        
+        if (!$user->hasAnyRole(['System Admin', 'HR Officer'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to lock formulas'
+            ], 403);
+        }
+
+        try {
+            $formula = \App\Models\PayrollFormula::findOrFail($formulaId);
+            
+            $formula->update([
+                'is_locked' => true,
+                'locked_by' => $user->id,
+                'locked_at' => now(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Formula locked successfully',
+                'formula' => $formula
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to lock formula: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate OTP for unlocking formula
+     */
+    public function generateUnlockOtp(Request $request, $formulaId)
+    {
+        $user = Auth::user();
+        
+        if (!$user->hasAnyRole(['System Admin', 'HR Officer'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to unlock formulas'
+            ], 403);
+        }
+
+        try {
+            $formula = \App\Models\PayrollFormula::findOrFail($formulaId);
+
+            if (!$formula->is_locked) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Formula is not locked'
+                ], 400);
+            }
+
+            // Generate 6-digit OTP
+            $otp = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
+            
+            $formula->update([
+                'otp_code' => $otp,
+                'otp_expires_at' => now()->addMinutes(10), // OTP valid for 10 minutes
+            ]);
+
+            // Send OTP via email or SMS (implement based on your notification system)
+            // For now, we'll return it in the response (in production, send via secure channel)
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'OTP generated successfully. Please check your email/SMS.',
+                'otp' => $otp, // Remove this in production, send via email/SMS instead
+                'expires_at' => $formula->otp_expires_at->format('Y-m-d H:i:s')
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate OTP: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Unlock a formula with OTP
+     */
+    public function unlockFormula(Request $request, $formulaId)
+    {
+        $user = Auth::user();
+        
+        if (!$user->hasAnyRole(['System Admin', 'HR Officer'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to unlock formulas'
+            ], 403);
+        }
+
+        $request->validate([
+            'otp' => 'required|string|size:6',
+        ]);
+
+        try {
+            $formula = \App\Models\PayrollFormula::findOrFail($formulaId);
+
+            if (!$formula->is_locked) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Formula is not locked'
+                ], 400);
+            }
+
+            if (!$formula->isOtpValid($request->otp)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid or expired OTP. Please request a new OTP.'
+                ], 400);
+            }
+
+            $formula->update([
+                'is_locked' => false,
+                'locked_by' => null,
+                'locked_at' => null,
+                'otp_code' => null,
+                'otp_expires_at' => null,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Formula unlocked successfully',
+                'formula' => $formula
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to unlock formula: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

@@ -100,6 +100,39 @@
         </div>
     </div>
 
+    <!-- Payroll Formulas Management Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-lg">
+                <div class="card-header bg-gradient-success text-white" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 text-white fw-bold">
+                            <i class="bx bx-calculator me-2"></i>Payroll Formulas Management
+                        </h5>
+                        <button type="button" class="btn btn-light btn-sm" onclick="loadFormulas()">
+                            <i class="bx bx-refresh me-1"></i>Refresh
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-4">
+                    <div class="alert alert-info">
+                        <i class="bx bx-info-circle me-2"></i>
+                        <strong>Formula Management:</strong> All payroll calculations reference formulas from this section. 
+                        Lock formulas to prevent unauthorized changes. Use OTP verification to unlock and edit locked formulas.
+                    </div>
+                    
+                    <div id="formulasContainer">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading formulas...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Enhanced Deduction Types Overview -->
     <div class="row mb-4">
         <div class="col-12">
@@ -282,7 +315,7 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Employee <span class="text-danger">*</span></label>
-                            <select class="form-select" id="deduction_employee_select" name="employee_id" required>
+                            <select class="form-select" id="deduction_employee_select" name="employee_id" required onchange="document.getElementById('deduction_employee_id').value = this.value;">
                                 <option value="">Select Employee</option>
                                 @if(isset($employees) && $employees->count() > 0)
                                     @foreach($employees as $employee)
@@ -873,8 +906,22 @@ document.getElementById('deductionForm')?.addEventListener('submit', function(e)
     const formData = new FormData(this);
     const deductionId = document.getElementById('deduction_id').value;
     const calculationMethod = document.getElementById('deduction_calculation_method').value;
-    const employeeId = formData.get('employee_id');
+    // Get employee_id from either the hidden field or the select field
+    const employeeId = document.getElementById('deduction_employee_id').value || formData.get('employee_id') || document.getElementById('deduction_employee_select').value;
     const deductionType = formData.get('deduction_type');
+    
+    if (!employeeId) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Please select an employee',
+            customClass: {
+                container: 'swal2-container',
+                popup: 'swal2-popup'
+            }
+        });
+        return;
+    }
     
     let amount = 0;
     
@@ -1283,6 +1330,427 @@ function toggleDeductionCalculationMethod() {
         statutoryInfo.style.display = 'block';
     }
 }
+
+// Formula Management Functions
+function loadFormulas() {
+    const container = document.getElementById('formulasContainer');
+    if (!container) return;
+    
+    container.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading formulas...</span></div></div>';
+    
+    fetch('{{ route("payroll.formulas.index") }}', {
+        method: 'GET',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            renderFormulas(data.formulas || []);
+        } else {
+            container.innerHTML = '<div class="alert alert-danger">Failed to load formulas</div>';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        container.innerHTML = '<div class="alert alert-danger">Error loading formulas</div>';
+    });
+}
+
+function renderFormulas(formulas) {
+    const container = document.getElementById('formulasContainer');
+    if (!container) return;
+    
+    if (!formulas || formulas.length === 0) {
+        container.innerHTML = '<div class="alert alert-info">No formulas found. Please initialize formulas first.</div>';
+        return;
+    }
+    
+    container.innerHTML = formulas.map(formula => {
+        const isLocked = formula.is_locked || false;
+        const parameters = formula.parameters ? JSON.stringify(formula.parameters, null, 2) : '{}';
+        
+        return `
+            <div class="card mb-3 ${isLocked ? 'border-warning' : 'border-primary'}" id="formula-card-${formula.id}">
+                <div class="card-header ${isLocked ? 'bg-warning' : 'bg-primary'} text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-0 text-white fw-bold">
+                                <i class="bx bx-${isLocked ? 'lock' : 'calculator'} me-2"></i>
+                                ${escapeHtml(formula.name)} (${escapeHtml(formula.formula_type)})
+                            </h6>
+                        </div>
+                        <div>
+                            ${isLocked ? 
+                                `<span class="badge bg-light text-dark me-2">
+                                    <i class="bx bx-lock me-1"></i>Locked
+                                </span>` : 
+                                `<span class="badge bg-light text-success me-2">
+                                    <i class="bx bx-lock-open me-1"></i>Unlocked
+                                </span>`
+                            }
+                            <button type="button" class="btn btn-sm btn-light" onclick="editFormula(${formula.id})" ${isLocked ? 'disabled' : ''}>
+                                <i class="bx bx-edit"></i> Edit
+                            </button>
+                            ${isLocked ? 
+                                `<button type="button" class="btn btn-sm btn-light" onclick="unlockFormula(${formula.id})">
+                                    <i class="bx bx-lock-open"></i> Unlock
+                                </button>` :
+                                `<button type="button" class="btn btn-sm btn-light" onclick="lockFormula(${formula.id})">
+                                    <i class="bx bx-lock"></i> Lock
+                                </button>`
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="fw-bold">Formula:</h6>
+                            <div class="bg-light p-3 rounded mb-3">
+                                <code>${escapeHtml(formula.formula)}</code>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="fw-bold">Explanation:</h6>
+                            <p class="text-muted">${escapeHtml(formula.explanation)}</p>
+                        </div>
+                    </div>
+                    ${parameters && parameters !== '{}' ? `
+                        <div class="mt-3">
+                            <h6 class="fw-bold">Parameters:</h6>
+                            <pre class="bg-light p-3 rounded"><code>${escapeHtml(parameters)}</code></pre>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function editFormula(formulaId) {
+    fetch('{{ route("payroll.formulas.index") }}', {
+        method: 'GET',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const formula = data.formulas.find(f => f.id == formulaId);
+            if (formula) {
+                showEditFormulaModal(formula);
+            }
+        }
+    });
+}
+
+function showEditFormulaModal(formula) {
+    const isLocked = formula.is_locked || false;
+    
+    Swal.fire({
+        title: `Edit Formula: ${escapeHtml(formula.name)}`,
+        html: `
+            <form id="editFormulaForm">
+                <div class="mb-3">
+                    <label class="form-label">Formula <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="edit_formula" rows="3" required>${escapeHtml(formula.formula)}</textarea>
+                    <small class="text-muted">Enter the calculation formula (e.g., gross_salary * 0.10)</small>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Explanation <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="edit_explanation" rows="4" required>${escapeHtml(formula.explanation)}</textarea>
+                    <small class="text-muted">Detailed explanation of how this formula works</small>
+                </div>
+                ${isLocked ? `
+                    <div class="mb-3">
+                        <label class="form-label">OTP Code <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="edit_otp" maxlength="6" required>
+                        <small class="text-muted">Enter the 6-digit OTP to unlock and edit this formula</small>
+                        <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="requestUnlockOtp(${formula.id})">
+                            <i class="bx bx-refresh me-1"></i>Request New OTP
+                        </button>
+                    </div>
+                ` : ''}
+            </form>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Save Changes',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        width: '600px',
+        didOpen: () => {
+            // Focus on first input
+            document.getElementById('edit_formula')?.focus();
+        },
+        preConfirm: () => {
+            const formulaValue = document.getElementById('edit_formula').value;
+            const explanationValue = document.getElementById('edit_explanation').value;
+            const otpValue = isLocked ? document.getElementById('edit_otp').value : null;
+            
+            if (!formulaValue || !explanationValue) {
+                Swal.showValidationMessage('Please fill in all required fields');
+                return false;
+            }
+            
+            if (isLocked && !otpValue) {
+                Swal.showValidationMessage('Please enter OTP code');
+                return false;
+            }
+            
+            return {
+                formula: formulaValue,
+                explanation: explanationValue,
+                otp: otpValue
+            };
+        }
+    }).then((result) => {
+        if (result.isConfirmed && result.value) {
+            updateFormula(formula.id, result.value);
+        }
+    });
+}
+
+function updateFormula(formulaId, data) {
+    fetch(`{{ url('payroll/formulas') }}/${formulaId}`, {
+        method: 'PUT',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Success',
+                text: 'Formula updated successfully',
+                customClass: {
+                    container: 'swal2-container',
+                    popup: 'swal2-popup'
+                }
+            });
+            loadFormulas();
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: result.message || 'Failed to update formula',
+                customClass: {
+                    container: 'swal2-container',
+                    popup: 'swal2-popup'
+                }
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'An error occurred while updating the formula',
+            customClass: {
+                container: 'swal2-container',
+                popup: 'swal2-popup'
+            }
+        });
+    });
+}
+
+function lockFormula(formulaId) {
+    Swal.fire({
+        title: 'Lock Formula?',
+        text: 'This will prevent unauthorized changes. You will need OTP to unlock it.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, Lock it',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        customClass: {
+            container: 'swal2-container',
+            popup: 'swal2-popup'
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch(`{{ url('payroll/formulas') }}/${formulaId}/lock`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success',
+                        text: 'Formula locked successfully',
+                        customClass: {
+                            container: 'swal2-container',
+                            popup: 'swal2-popup'
+                        }
+                    });
+                    loadFormulas();
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message || 'Failed to lock formula',
+                        customClass: {
+                            container: 'swal2-container',
+                            popup: 'swal2-popup'
+                        }
+                    });
+                }
+            });
+        }
+    });
+}
+
+function unlockFormula(formulaId) {
+    Swal.fire({
+        title: 'Unlock Formula',
+        html: `
+            <p>To unlock this formula, you need to enter the OTP code.</p>
+            <input type="text" class="form-control mt-3" id="unlock_otp" maxlength="6" placeholder="Enter 6-digit OTP">
+            <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="requestUnlockOtp(${formulaId})">
+                <i class="bx bx-refresh me-1"></i>Request New OTP
+            </button>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Unlock',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        customClass: {
+            container: 'swal2-container',
+            popup: 'swal2-popup'
+        },
+        preConfirm: () => {
+            const otp = document.getElementById('unlock_otp').value;
+            if (!otp || otp.length !== 6) {
+                Swal.showValidationMessage('Please enter a valid 6-digit OTP');
+                return false;
+            }
+            return { otp: otp };
+        }
+    }).then((result) => {
+        if (result.isConfirmed && result.value) {
+            fetch(`{{ url('payroll/formulas') }}/${formulaId}/unlock`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(result.value)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success',
+                        text: 'Formula unlocked successfully',
+                        customClass: {
+                            container: 'swal2-container',
+                            popup: 'swal2-popup'
+                        }
+                    });
+                    loadFormulas();
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message || 'Failed to unlock formula. Invalid or expired OTP.',
+                        customClass: {
+                            container: 'swal2-container',
+                            popup: 'swal2-popup'
+                        }
+                    });
+                }
+            });
+        }
+    });
+}
+
+function requestUnlockOtp(formulaId) {
+    Swal.fire({
+        title: 'Requesting OTP...',
+        text: 'Please wait',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        },
+        customClass: {
+            container: 'swal2-container',
+            popup: 'swal2-popup'
+        }
+    });
+    
+    fetch(`{{ url('payroll/formulas') }}/${formulaId}/unlock-otp`, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'OTP Generated',
+                html: `
+                    <p>Your OTP code is: <strong>${data.otp}</strong></p>
+                    <p class="text-muted small">Valid for 10 minutes. Expires at: ${data.expires_at}</p>
+                    <p class="text-warning small">⚠️ In production, this will be sent via email/SMS</p>
+                `,
+                customClass: {
+                    container: 'swal2-container',
+                    popup: 'swal2-popup'
+                }
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: data.message || 'Failed to generate OTP',
+                customClass: {
+                    container: 'swal2-container',
+                    popup: 'swal2-popup'
+                }
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'An error occurred while generating OTP',
+            customClass: {
+                container: 'swal2-container',
+                popup: 'swal2-popup'
+            }
+        });
+    });
+}
+
+// Load formulas on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadFormulas();
+});
 </script>
 @endpush
 @endsection
