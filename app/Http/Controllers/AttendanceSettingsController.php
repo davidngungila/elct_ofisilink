@@ -165,10 +165,12 @@ class AttendanceSettingsController extends Controller
             $device = AttendanceDevice::with(['location'])->findOrFail($id);
             $locations = AttendanceLocation::where('is_active', true)->orderBy('name')->get();
             
-            // Ensure device has all required properties
-            if (!$device) {
-                abort(404, 'Device not found');
-            }
+            // Log for debugging
+            Log::info('Loading device for edit', [
+                'device_id' => $id,
+                'device_exists' => $device ? 'yes' : 'no',
+                'device_name' => $device->name ?? 'N/A'
+            ]);
             
             return view('modules.hr.attendance-settings-devices-form', [
                 'device' => $device,
