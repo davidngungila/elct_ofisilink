@@ -161,14 +161,21 @@ class AttendanceSettingsController extends Controller
             abort(403, 'Unauthorized');
         }
         
-        $device = AttendanceDevice::with(['location'])->findOrFail($id);
-        $locations = AttendanceLocation::where('is_active', true)->orderBy('name')->get();
-        
-        return view('modules.hr.attendance-settings-devices-form', [
-            'device' => $device,
-            'locations' => $locations,
-            'mode' => 'edit'
-        ]);
+        try {
+            $device = AttendanceDevice::with(['location'])->findOrFail($id);
+            $locations = AttendanceLocation::where('is_active', true)->orderBy('name')->get();
+            
+            return view('modules.hr.attendance-settings-devices-form', [
+                'device' => $device,
+                'locations' => $locations,
+                'mode' => 'edit'
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            abort(404, 'Device not found');
+        } catch (\Exception $e) {
+            Log::error('Error loading device for edit: ' . $e->getMessage());
+            abort(500, 'Error loading device: ' . $e->getMessage());
+        }
     }
 
     /**
