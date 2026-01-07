@@ -641,6 +641,8 @@ Route::prefix('attendance-settings')->name('attendance-settings.')->middleware('
     
     // Devices
     Route::get('/devices', [App\Http\Controllers\AttendanceSettingsController::class, 'getDevices'])->name('devices.index');
+    Route::get('/devices/create', [App\Http\Controllers\AttendanceSettingsController::class, 'createDevice'])->name('devices.create');
+    Route::get('/devices/{id}/edit', [App\Http\Controllers\AttendanceSettingsController::class, 'editDevice'])->name('devices.edit');
     Route::get('/devices/{id}', [App\Http\Controllers\AttendanceSettingsController::class, 'getDevice'])->name('devices.show');
     Route::post('/devices', [App\Http\Controllers\AttendanceSettingsController::class, 'storeDevice'])->name('devices.store');
     Route::put('/devices/{id}', [App\Http\Controllers\AttendanceSettingsController::class, 'updateDevice'])->name('devices.update');

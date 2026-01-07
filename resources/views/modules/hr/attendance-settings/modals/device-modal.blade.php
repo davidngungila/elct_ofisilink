@@ -122,8 +122,20 @@
                             </div>
                             <div class="alert alert-info mb-0">
                                 <i class="bx bx-info-circle me-2"></i>
-                                <strong>Note:</strong> When online mode is enabled, the system will use the public IP address for device connections. 
-                                Make sure the device is configured to accept connections from this public IP and that port forwarding is properly configured on your router.
+                                <strong>Online Mode Configuration Required:</strong>
+                                <ol class="mb-0 mt-2" style="padding-left: 20px;">
+                                    <li><strong>Port Forwarding:</strong> Configure your router to forward:
+                                        <ul style="margin-top: 5px;">
+                                            <li>External Port: <code id="externalPortDisplay">{{ old('port', '4370') }}</code></li>
+                                            <li>Internal IP: <span id="localIpDisplay">{{ old('ip_address', 'Device Local IP') }}</span></li>
+                                            <li>Internal Port: <code id="internalPortDisplay">{{ old('port', '4370') }}</code></li>
+                                        </ul>
+                                    </li>
+                                    <li><strong>Router Firewall:</strong> Allow incoming connections on port <code id="firewallPortDisplay">{{ old('port', '4370') }}</code></li>
+                                    <li><strong>Device Firewall:</strong> Ensure device allows connections from internet</li>
+                                    <li><strong>Public IP:</strong> Enter the router's public IP address (e.g., 41.59.154.147)</li>
+                                    <li><strong>Local IP:</strong> Enter the device's local network IP address (e.g., 192.168.1.100)</li>
+                                </ol>
                             </div>
                         </div>
                     </div>

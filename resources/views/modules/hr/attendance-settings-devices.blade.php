@@ -16,9 +16,9 @@
                 <a href="{{ route('modules.hr.attendance.settings') }}" class="btn btn-outline-secondary me-2">
                     <i class="bx bx-arrow-back me-1"></i> Back to Settings
                 </a>
-                <button type="button" class="btn btn-primary" onclick="openDeviceModal()">
+                <a href="{{ route('attendance-settings.devices.create') }}" class="btn btn-primary">
                     <i class="bx bx-plus me-1"></i> Add Device
-                </button>
+                </a>
             </div>
         </div>
     </div>
@@ -217,7 +217,7 @@ function loadDevices() {
                 html += '<td>';
                 html += '<div class="btn-group" role="group">';
                 html += '<button class="btn btn-sm btn-outline-info" onclick="viewDeviceDetails(' + device.id + ')" title="View More"><i class="bx bx-show"></i></button> ';
-                html += '<button class="btn btn-sm btn-outline-primary" onclick="editDevice(' + device.id + ')" title="Edit"><i class="bx bx-edit"></i></button> ';
+                html += '<a href="/modules/hr/attendance/settings/devices/' + device.id + '/edit" class="btn btn-sm btn-outline-primary" title="Edit"><i class="bx bx-edit"></i></a> ';
                 html += '<button class="btn btn-sm btn-outline-warning" onclick="testDevice(' + device.id + ')" title="Test Connection"><i class="bx bx-wifi"></i></button> ';
                 html += '<button class="btn btn-sm btn-outline-danger" onclick="deleteDevice(' + device.id + ', \'' + (device.name || '').replace(/'/g, "\\'") + '\')" title="Delete"><i class="bx bx-trash"></i></button>';
                 html += '</div>';
@@ -287,20 +287,42 @@ function testDevice(deviceId) {
             // Reload devices to update status
             loadDevices();
         } else if (data.success && !data.is_online) {
+            // Format error message for better display
+            let errorHtml = '<div style="text-align: left; max-height: 400px; overflow-y: auto;">';
+            if (data.message) {
+                // Replace newlines with HTML breaks
+                errorHtml += '<pre style="white-space: pre-wrap; font-family: inherit; margin: 0;">' + data.message.replace(/\n/g, '<br>') + '</pre>';
+            } else {
+                errorHtml += '<p>Device is offline or unreachable</p>';
+            }
+            errorHtml += '</div>';
+            
             Swal.fire({
                 title: 'Device Offline',
-                text: data.message || 'Device is offline or unreachable',
+                html: errorHtml,
                 icon: 'warning',
-                confirmButtonText: 'OK'
+                confirmButtonText: 'OK',
+                width: '600px'
             });
             // Reload devices to update status
             loadDevices();
         } else {
+            // Format error message for better display
+            let errorHtml = '<div style="text-align: left; max-height: 400px; overflow-y: auto;">';
+            if (data.message) {
+                // Replace newlines with HTML breaks
+                errorHtml += '<pre style="white-space: pre-wrap; font-family: inherit; margin: 0;">' + data.message.replace(/\n/g, '<br>') + '</pre>';
+            } else {
+                errorHtml += '<p>Failed to test device connection</p>';
+            }
+            errorHtml += '</div>';
+            
             Swal.fire({
-                title: 'Error!',
-                text: data.message || 'Failed to test device connection',
+                title: 'Connection Error',
+                html: errorHtml,
                 icon: 'error',
-                confirmButtonText: 'OK'
+                confirmButtonText: 'OK',
+                width: '600px'
             });
         }
     })
@@ -322,8 +344,8 @@ function testAllDevices() {
 }
 
 function editDevice(deviceId) {
-    // Edit device logic
-    openDeviceModal(deviceId);
+    // Navigate to edit page
+    window.location.href = '/modules/hr/attendance/settings/devices/' + deviceId + '/edit';
 }
 
 function deleteDevice(deviceId, deviceName) {
@@ -416,6 +438,10 @@ function openDeviceModal(deviceId = null) {
                     if (onlineModeToggle.checked) {
                         onlineModeFields.style.display = 'block';
                         publicIpField.setAttribute('required', 'required');
+                        // Update port forwarding instructions
+                        if (typeof updatePortForwardingInstructions === 'function') {
+                            updatePortForwardingInstructions();
+                        }
                     } else {
                         onlineModeFields.style.display = 'none';
                         publicIpField.removeAttribute('required');
@@ -445,6 +471,24 @@ function setupDeviceForm() {
     const onlineModeToggle = document.getElementById('deviceIsOnlineMode');
     const onlineModeFields = document.getElementById('onlineModeFields');
     const publicIpField = document.getElementById('devicePublicIpAddress');
+    const localIpField = document.getElementById('deviceIpAddress');
+    const portField = document.getElementById('devicePort');
+    
+    // Function to update port forwarding instructions
+    function updatePortForwardingInstructions() {
+        const port = portField?.value || '4370';
+        const localIp = localIpField?.value || 'Device Local IP';
+        
+        const externalPortDisplay = document.getElementById('externalPortDisplay');
+        const internalPortDisplay = document.getElementById('internalPortDisplay');
+        const localIpDisplay = document.getElementById('localIpDisplay');
+        const firewallPortDisplay = document.getElementById('firewallPortDisplay');
+        
+        if (externalPortDisplay) externalPortDisplay.textContent = port;
+        if (internalPortDisplay) internalPortDisplay.textContent = port;
+        if (localIpDisplay) localIpDisplay.textContent = localIp || 'Device Local IP';
+        if (firewallPortDisplay) firewallPortDisplay.textContent = port;
+    }
     
     if (onlineModeToggle && onlineModeFields) {
         onlineModeToggle.addEventListener('change', function() {
@@ -453,6 +497,7 @@ function setupDeviceForm() {
                 if (publicIpField) {
                     publicIpField.setAttribute('required', 'required');
                 }
+                updatePortForwardingInstructions();
             } else {
                 onlineModeFields.style.display = 'none';
                 if (publicIpField) {
@@ -460,6 +505,16 @@ function setupDeviceForm() {
                 }
             }
         });
+    }
+    
+    // Update port forwarding instructions when port or local IP changes
+    if (portField) {
+        portField.addEventListener('input', updatePortForwardingInstructions);
+        portField.addEventListener('change', updatePortForwardingInstructions);
+    }
+    if (localIpField) {
+        localIpField.addEventListener('input', updatePortForwardingInstructions);
+        localIpField.addEventListener('change', updatePortForwardingInstructions);
     }
     
     form.addEventListener('submit', async function(e) {
