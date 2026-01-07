@@ -56,7 +56,7 @@
         </div>
     @endif
 
-    <form action="{{ $mode === 'create' ? route('attendance-settings.devices.store') : route('attendance-settings.devices.update', $device->id) }}" method="POST" id="deviceForm">
+    <form action="{{ $mode === 'create' ? route('attendance-settings.devices.store') : route('attendance-settings.devices.update', $device->id ?? null) }}" method="POST" id="deviceForm">
         @csrf
         @if($mode === 'edit')
             @method('PUT')
@@ -243,7 +243,7 @@
             </h5>
             <div class="mb-3">
                 <label for="deviceConnectionConfig" class="form-label">Connection Config (JSON)</label>
-                <textarea class="form-control @error('connection_config') is-invalid @enderror" id="deviceConnectionConfig" name="connection_config" rows="3" placeholder='{"api_key": "xxx", "endpoint": "xxx"}'>{{ old('connection_config', $device->connection_config ? json_encode($device->connection_config, JSON_PRETTY_PRINT) : '') }}</textarea>
+                <textarea class="form-control @error('connection_config') is-invalid @enderror" id="deviceConnectionConfig" name="connection_config" rows="3" placeholder='{"api_key": "xxx", "endpoint": "xxx"}'>{{ old('connection_config', $device && $device->connection_config ? json_encode($device->connection_config, JSON_PRETTY_PRINT) : '') }}</textarea>
                 <small class="text-muted">JSON format for connection settings</small>
                 @error('connection_config')
                     <div class="invalid-feedback">{{ $message }}</div>
@@ -252,7 +252,7 @@
 
             <div class="mb-3">
                 <label for="deviceCapabilities" class="form-label">Capabilities (JSON)</label>
-                <textarea class="form-control @error('capabilities') is-invalid @enderror" id="deviceCapabilities" name="capabilities" rows="2" placeholder='["fingerprint", "face_recognition"]'>{{ old('capabilities', $device->capabilities ? json_encode($device->capabilities, JSON_PRETTY_PRINT) : '') }}</textarea>
+                <textarea class="form-control @error('capabilities') is-invalid @enderror" id="deviceCapabilities" name="capabilities" rows="2" placeholder='["fingerprint", "face_recognition"]'>{{ old('capabilities', $device && $device->capabilities ? json_encode($device->capabilities, JSON_PRETTY_PRINT) : '') }}</textarea>
                 <small class="text-muted">Device capabilities in JSON array format</small>
                 @error('capabilities')
                     <div class="invalid-feedback">{{ $message }}</div>
@@ -261,7 +261,7 @@
 
             <div class="mb-3">
                 <label for="deviceSettings" class="form-label">Settings (JSON)</label>
-                <textarea class="form-control @error('settings') is-invalid @enderror" id="deviceSettings" name="settings" rows="2" placeholder='{"timezone": "UTC", "language": "en"}'>{{ old('settings', $device->settings ? json_encode($device->settings, JSON_PRETTY_PRINT) : '') }}</textarea>
+                <textarea class="form-control @error('settings') is-invalid @enderror" id="deviceSettings" name="settings" rows="2" placeholder='{"timezone": "UTC", "language": "en"}'>{{ old('settings', $device && $device->settings ? json_encode($device->settings, JSON_PRETTY_PRINT) : '') }}</textarea>
                 <small class="text-muted">Device-specific settings in JSON format</small>
                 @error('settings')
                     <div class="invalid-feedback">{{ $message }}</div>
