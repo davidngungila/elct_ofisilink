@@ -56,7 +56,7 @@
         </div>
     @endif
 
-    <form action="{{ $mode === 'create' ? route('attendance-settings.devices.store') : ($device ? route('attendance-settings.devices.update', $device->id) : route('attendance-settings.devices.store')) }}" method="POST" id="deviceForm">
+    <form action="{{ $mode === 'create' ? route('attendance-settings.devices.store') : route('attendance-settings.devices.update', $device->id) }}" method="POST" id="deviceForm">
         @csrf
         @if($mode === 'edit' && $device)
             @method('PUT')
@@ -226,7 +226,7 @@
                                     <li>Internal Port: <code id="internalPortDisplay">{{ old('port', $device->port ?? '4370') }}</code></li>
                                 </ul>
                             </li>
-                            <li><strong>Router Firewall:</strong> Allow incoming connections on port <code id="firewallPortDisplay">{{ old('port', $device->port ?? '4370') }}</code></li>
+                            <li><strong>Router Firewall:</strong> Allow incoming connections on port <code id="firewallPortDisplay">{{ old('port', ($device && $device->port) ? $device->port : '4370') }}</code></li>
                             <li><strong>Device Firewall:</strong> Ensure device allows connections from internet</li>
                             <li><strong>Public IP:</strong> Enter the router's public IP address (e.g., 41.59.154.147)</li>
                             <li><strong>Local IP:</strong> Enter the device's local network IP address (e.g., 192.168.1.100)</li>

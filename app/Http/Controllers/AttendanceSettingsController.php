@@ -171,10 +171,12 @@ class AttendanceSettingsController extends Controller
                 'mode' => 'edit'
             ]);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            Log::error('Device not found for edit: ' . $id);
             abort(404, 'Device not found');
         } catch (\Exception $e) {
             Log::error('Error loading device for edit: ' . $e->getMessage());
-            abort(500, 'Error loading device: ' . $e->getMessage());
+            Log::error('Stack trace: ' . $e->getTraceAsString());
+            return response()->view('errors.500', ['message' => 'Error loading device: ' . $e->getMessage()], 500);
         }
     }
 
