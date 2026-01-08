@@ -64,7 +64,7 @@
               <td>
                 <div class="btn-group btn-group-sm" role="group">
                   <a href="{{ route('petty-cash.show', $voucher->id) }}" class="btn btn-outline-primary" title="View Details">
-                    <i class="bx bx-show"></i> View
+                    <i class="bx bx-show"></i>
                   </a>
                   <a href="{{ route('petty-cash.pdf', $voucher->id) }}" class="btn btn-outline-danger" target="_blank" title="Download PDF">
                     <i class="bx bx-file-blank"></i>

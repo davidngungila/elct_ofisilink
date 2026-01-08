@@ -210,7 +210,7 @@
                   <div class="btn-group">
                     <a href="{{ route('petty-cash.show', $voucher) }}" 
                        class="btn btn-sm btn-outline-primary" title="View Details">
-                      <i class="bx bx-show"></i> View Details
+                      <i class="bx bx-show"></i>
                     </a>
                     @if($voucher->status === 'paid' && $voucher->created_by === auth()->id())
                     <button type="button" class="btn btn-sm btn-success btn-open-retire" 
