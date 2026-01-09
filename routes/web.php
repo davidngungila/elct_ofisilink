@@ -58,6 +58,10 @@ Route::get('/', function () {
     return redirect()->route('login');
 })->name('landing');
 
+// Webhook routes (no authentication required, but signature verification)
+Route::post('/webhook/github', [App\Http\Controllers\WebhookController::class, 'github'])->name('webhook.github');
+Route::post('/webhook/test', [App\Http\Controllers\WebhookController::class, 'test'])->name('webhook.test')->middleware('auth'); // Test endpoint requires auth
+
 // Public Careers/Jobs Page
 Route::get('/careers', [App\Http\Controllers\RecruitmentController::class, 'publicCareers'])->name('careers');
 Route::view('/landing', 'public.landing')->name('public.landing');
