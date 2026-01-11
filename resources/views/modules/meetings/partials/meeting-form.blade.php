@@ -106,6 +106,34 @@
         </div>
     </div>
 
+    <!-- Approval Section -->
+    <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-header bg-warning text-white">
+            <h5 class="card-title mb-0"><i class="bx bx-check-circle me-2"></i>Approval Information</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <label class="form-label">Select Approver <small class="text-muted">(Required when submitting for approval)</small></label>
+                    <select name="approver_id" id="approver_id" class="form-select form-select-lg">
+                        <option value="">Select Approver</option>
+                        @foreach($users as $u)
+                            <option value="{{ $u->id }}" {{ ($isEdit && (isset($meeting->approver_id) && $meeting->approver_id == $u->id)) ? 'selected' : '' }}>
+                                {{ $u->name }}
+                                @if($u->primaryDepartment)
+                                    - {{ $u->primaryDepartment->name }}
+                                @endif
+                            </option>
+                        @endforeach
+                    </select>
+                    <small class="text-muted d-block mt-2">
+                        <i class="bx bx-info-circle"></i> Select who will approve this meeting when you submit it for approval. Choose someone with approval permissions (System Admin, General Manager, HOD, or HR Officer).
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Participants Section -->
     <div class="card mb-4 border-0 shadow-sm">
         <div class="card-header bg-success text-white">
@@ -135,9 +163,26 @@
                     <i class="bx bx-info-circle"></i> Select multiple staff members from your organization
                 </small>
                 <!-- Selected Staff Display -->
-                <div id="selected-staff-display" class="mt-3" style="display: none;">
-                    <h6 class="mb-2">Selected Participants:</h6>
-                    <div id="selected-staff-list" class="d-flex flex-wrap gap-2"></div>
+                <div id="selected-staff-display" class="mt-3">
+                    <h6 class="mb-2 fw-semibold">Selected Participants:</h6>
+                    <div id="selected-staff-list" class="d-flex flex-wrap gap-2">
+                        @if($isEdit && isset($meeting->staff_participants) && count($meeting->staff_participants) > 0)
+                            @foreach($meeting->staff_participants as $staffId)
+                                @php
+                                    $staffUser = $users->firstWhere('id', $staffId);
+                                @endphp
+                                @if($staffUser)
+                                    <span class="badge bg-primary p-2 mb-2" data-user-id="{{ $staffId }}">
+                                        <i class="bx bx-user me-1"></i>
+                                        {{ $staffUser->name }}
+                                        @if($staffUser->primaryDepartment)
+                                            - {{ $staffUser->primaryDepartment->name }}
+                                        @endif
+                                    </span>
+                                @endif
+                            @endforeach
+                        @endif
+                    </div>
                 </div>
             </div>
 
@@ -157,6 +202,40 @@
                     <i class="bx bx-info-circle"></i> Add external participants (guests, clients, partners, etc.)
                 </small>
                 <div id="external-participants-container">
+                    @if($isEdit && isset($externalParticipants) && $externalParticipants->count() > 0)
+                        @foreach($externalParticipants as $index => $extParticipant)
+                            <div class="external-participant-item card mb-3" data-index="{{ $index }}">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h6 class="mb-0">External Participant #<span class="participant-number">{{ $index + 1 }}</span></h6>
+                                        <button type="button" class="btn btn-sm btn-danger remove-external-participant">
+                                            <i class="bx bx-trash"></i> Remove
+                                        </button>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Full Name <span class="text-danger">*</span></label>
+                                            <input type="text" name="external_name[]" class="form-control" required placeholder="Enter full name" value="{{ $extParticipant->name ?? '' }}">
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Email</label>
+                                            <input type="email" name="external_email[]" class="form-control" placeholder="Enter email address" value="{{ $extParticipant->email ?? '' }}">
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Phone</label>
+                                            <input type="text" name="external_phone[]" class="form-control" placeholder="Enter phone number" value="{{ $extParticipant->phone ?? '' }}">
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Institution/Organization</label>
+                                            <input type="text" name="external_institution[]" class="form-control" placeholder="Enter institution or organization" value="{{ $extParticipant->institution ?? '' }}">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        @endforeach
+                    @endif
                     <!-- External participants will be added here dynamically -->
                 </div>
             </div>
@@ -328,24 +407,35 @@ $(document).ready(function() {
     // Display selected staff participants
     function updateSelectedStaffDisplay() {
         const selectedIds = $('#staff_participants').val() || [];
-        const $display = $('#selected-staff-display');
         const $list = $('#selected-staff-list');
         
-        if (selectedIds.length > 0) {
-            $display.show();
-            $list.empty();
-            
-            selectedIds.forEach(function(userId) {
+        // Get existing badges (pre-loaded from edit mode)
+        const existingBadges = $list.find('.badge').map(function() {
+            return $(this).attr('data-user-id');
+        }).get();
+        
+        // Remove badges for unselected users (but keep pre-loaded ones if they're still selected)
+        $list.find('.badge').each(function() {
+            const userId = $(this).attr('data-user-id');
+            if (userId && selectedIds.indexOf(userId.toString()) === -1) {
+                $(this).remove();
+            }
+        });
+        
+        // Add badges for newly selected users
+        selectedIds.forEach(function(userId) {
+            // Check if badge already exists
+            if ($list.find('.badge[data-user-id="' + userId + '"]').length === 0) {
                 const $option = $('#staff_participants option[value="' + userId + '"]');
-                const text = $option.text();
-                const $badge = $('<span class="badge bg-primary p-2">' + 
-                    '<i class="bx bx-user me-1"></i>' + text + 
-                    '</span>');
-                $list.append($badge);
-            });
-        } else {
-            $display.hide();
-        }
+                if ($option.length) {
+                    const text = $option.text();
+                    const $badge = $('<span class="badge bg-primary p-2 mb-2" data-user-id="' + userId + '">' + 
+                        '<i class="bx bx-user me-1"></i>' + text + 
+                        '</span>');
+                    $list.append($badge);
+                }
+            }
+        });
     }
 
     // Update display when selection changes
@@ -353,8 +443,10 @@ $(document).ready(function() {
         updateSelectedStaffDisplay();
     });
 
-    // Initial display update
-    updateSelectedStaffDisplay();
+    // Initial display update - ensure existing participants are shown
+    setTimeout(function() {
+        updateSelectedStaffDisplay();
+    }, 500);
 
     // Initialize Select2 for agenda presenters (will be initialized when agenda items are added)
     
@@ -377,7 +469,7 @@ $(document).ready(function() {
     });
 
     // External Participants Management
-    let externalParticipantCount = 0;
+    let externalParticipantCount = {{ $isEdit && isset($externalParticipants) ? $externalParticipants->count() : 0 }};
     
     $('#add-external-participant-btn').on('click', function() {
         const template = $('#external-participant-template').html();

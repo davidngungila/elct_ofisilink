@@ -29,17 +29,17 @@
         <p class="mb-2" style="text-align: justify; line-height: 1.8;">
             <strong>Ref. No. 1</strong><br>
             The meeting was opened at {{ \Carbon\Carbon::parse($meeting->start_time)->format('h:i A') }} 
-            with prayer led by {{ $minutes->opening_prayer_leader ?? '[CHAIRPERSON/VICE CHAIRPERSON]' }}, 
-            followed by hymn {{ $minutes->opening_hymn ?? '[HYMN NUMBER]' }} 
-            and scripture reading from {{ $minutes->opening_scripture ?? '[BIBLE REFERENCE]' }}.
+            with prayer led by {{ isset($minutes->opening_prayer_leader) && $minutes->opening_prayer_leader ? $minutes->opening_prayer_leader : '[CHAIRPERSON/VICE CHAIRPERSON]' }}, 
+            followed by hymn {{ isset($minutes->opening_hymn) && $minutes->opening_hymn ? $minutes->opening_hymn : '[HYMN NUMBER]' }} 
+            and scripture reading from {{ isset($minutes->opening_scripture) && $minutes->opening_scripture ? $minutes->opening_scripture : '[BIBLE REFERENCE]' }}.
         </p>
-        @if($minutes->opening_remarks)
+        @if(isset($minutes->opening_remarks) && $minutes->opening_remarks)
         <p class="mb-2" style="text-align: justify; line-height: 1.8;">
             {{ $minutes->opening_remarks }}
         </p>
         @endif
         <p class="mb-0" style="text-align: justify; line-height: 1.8;">
-            Opening was concluded with prayer led by {{ $minutes->opening_closing_prayer_leader ?? '[NAME]' }}.
+            Opening was concluded with prayer led by {{ isset($minutes->opening_closing_prayer_leader) && $minutes->opening_closing_prayer_leader ? $minutes->opening_closing_prayer_leader : '[NAME]' }}.
         </p>
     </div>
     @endif
@@ -296,13 +296,13 @@
         <p class="mb-2" style="text-align: justify; line-height: 1.8;">
             <strong>Ref. No. {{ ($agendas ? $agendas->count() : 0) + 9 }}</strong><br>
             The meeting was closed at {{ $minutes->closing_time }} 
-            @if($minutes->closing_hymn)
+            @if(isset($minutes->closing_hymn) && $minutes->closing_hymn)
                 with the hymn "{{ $minutes->closing_hymn }}" 
             @endif
-            followed by prayer led by {{ $minutes->closing_prayer_leader ?? '[NAME]' }} 
-            and concluded with the words "{{ $minutes->closing_remarks ?? 'NEEMA' }}".
+            followed by prayer led by {{ isset($minutes->closing_prayer_leader) && $minutes->closing_prayer_leader ? $minutes->closing_prayer_leader : '[NAME]' }} 
+            and concluded with the words "{{ isset($minutes->closing_remarks) && $minutes->closing_remarks ? $minutes->closing_remarks : 'NEEMA' }}".
         </p>
-        @if($minutes->organization_motto)
+        @if(isset($minutes->organization_motto) && $minutes->organization_motto)
         <p class="mb-0" style="font-weight: 600; font-style: italic;">
             {{ $minutes->organization_motto }}
         </p>

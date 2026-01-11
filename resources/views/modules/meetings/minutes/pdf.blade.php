@@ -130,7 +130,7 @@
                     <td>{{ $index + 1 }}</td>
                     <td>{{ $item->title ?? $item->description ?? 'N/A' }}</td>
                     <td>{{ $item->responsible_name ?? 'TBD' }}</td>
-                    <td>{{ $item->due_date ? \Carbon\Carbon::parse($item->due_date)->format('d M Y') : 'TBD' }}</td>
+                    <td>{{ $item->deadline ? \Carbon\Carbon::parse($item->deadline)->format('d M Y') : 'TBD' }}</td>
                     <td>
                         @php
                             $status = $item->status ?? 'open';

@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class MeetingController extends Controller
 {
@@ -277,22 +278,38 @@ class MeetingController extends Controller
             $user = Auth::user();
             $branchId = $request->branch_id ?? $user->branch_id ?? null;
             
-            // Create meeting
-            $meetingId = DB::table('meetings')->insertGetId([
-                    'title' => $request->title,
+            // Prepare meeting data
+            $meetingData = [
+                'title' => $request->title,
                 'category_id' => $request->category_id ?: null,
                 'branch_id' => $branchId,
-                    'meeting_date' => $request->meeting_date,
-                    'start_time' => $request->start_time,
-                    'end_time' => $request->end_time,
+                'meeting_date' => $request->meeting_date,
+                'start_time' => $request->start_time,
+                'end_time' => $request->end_time,
                 'venue' => $request->venue ?? $request->location ?? null,
                 'meeting_type' => $request->meeting_type ?? 'physical',
                 'description' => $request->description ?? null,
                 'status' => $request->action === 'submit' ? 'pending_approval' : 'draft',
                 'created_by' => Auth::id(),
                 'created_at' => now(),
-                    'updated_at' => now()
-            ]);
+                'updated_at' => now()
+            ];
+            
+            // Add approver_id if column exists and when submitting for approval
+            if ($request->action === 'submit' && $request->approver_id) {
+                if (Schema::hasColumn('meetings', 'approver_id')) {
+                    $meetingData['approver_id'] = $request->approver_id;
+                }
+                if (Schema::hasColumn('meetings', 'submitted_by')) {
+                    $meetingData['submitted_by'] = Auth::id();
+                }
+                if (Schema::hasColumn('meetings', 'submitted_at')) {
+                    $meetingData['submitted_at'] = now();
+                }
+            }
+            
+            // Create meeting
+            $meetingId = DB::table('meetings')->insertGetId($meetingData);
 
             // Handle staff participants
             if ($request->has('staff_participants')) {
@@ -517,6 +534,18 @@ class MeetingController extends Controller
             ->orderBy('meeting_participants.name')
             ->get();
 
+        // Extract staff participant IDs for form
+        $staffParticipantIds = $participants->where('participant_type', 'staff')
+            ->pluck('user_id')
+            ->filter()
+            ->toArray();
+        
+        // Load external participants
+        $externalParticipants = DB::table('meeting_participants')
+            ->where('meeting_participants.meeting_id', $id)
+            ->where('meeting_participants.participant_type', 'external')
+            ->get();
+
         // Load agendas
         $orderColumn = Schema::hasColumn('meeting_agendas', 'sort_order') ? 'sort_order' : 'order_index';
         $agendas = DB::table('meeting_agendas')
@@ -538,8 +567,10 @@ class MeetingController extends Controller
             ->orderBy('name')
             ->get();
 
-        // Convert to object for view compatibility
+        // Convert to object for view compatibility and add staff_participants array
         $meeting = (object) $meeting;
+        $meeting->staff_participants = $staffParticipantIds;
+        $meeting->external_participants_data = $externalParticipants;
 
         return view('modules.meetings.edit', compact(
             'meeting',
@@ -548,7 +579,8 @@ class MeetingController extends Controller
             'departments',
             'users',
             'participants',
-            'agendas'
+            'agendas',
+            'externalParticipants'
         ));
     }
     /**
@@ -601,12 +633,22 @@ class MeetingController extends Controller
                 'meeting_type' => $request->meeting_type ?? 'physical',
                 'description' => $request->description ?? null,
                 'updated_by' => Auth::id(),
-                            'updated_at' => now()
+                'updated_at' => now()
             ];
             
             // Only update status if action is submit and meeting is draft
             if ($request->action === 'submit' && $meeting->status === 'draft') {
                 $updateData['status'] = 'pending_approval';
+                // Add approver_id if column exists and when submitting for approval
+                if ($request->approver_id && Schema::hasColumn('meetings', 'approver_id')) {
+                    $updateData['approver_id'] = $request->approver_id;
+                }
+                if (Schema::hasColumn('meetings', 'submitted_by')) {
+                    $updateData['submitted_by'] = Auth::id();
+                }
+                if (Schema::hasColumn('meetings', 'submitted_at')) {
+                    $updateData['submitted_at'] = now();
+                }
             }
             
             DB::table('meetings')->where('id', $id)->update($updateData);
@@ -1038,14 +1080,10 @@ class MeetingController extends Controller
         $orderColumn = Schema::hasColumn('meeting_agendas', 'sort_order') ? 'sort_order' : 'order_index';
         $agendas = DB::table('meeting_agendas')
             ->leftJoin('users as presenter', 'meeting_agendas.presenter_id', '=', 'presenter.id')
-            ->leftJoin('meeting_agenda_minutes', 'meeting_agendas.id', '=', 'meeting_agenda_minutes.agenda_id')
             ->where('meeting_agendas.meeting_id', $id)
             ->select(
                 'meeting_agendas.*',
-                'presenter.name as presenter_name',
-                'meeting_agenda_minutes.discussion_notes',
-                'meeting_agenda_minutes.resolution',
-                'meeting_agenda_minutes.action_items'
+                'presenter.name as presenter_name'
             )
             ->orderBy($orderColumn)
             ->get();
@@ -1054,13 +1092,13 @@ class MeetingController extends Controller
         $actionItems = collect(); // Initialize empty collection
         if (Schema::hasTable('meeting_action_items')) {
             $actionItems = DB::table('meeting_action_items')
-                ->leftJoin('users as assignedTo', 'meeting_action_items.assigned_to', '=', 'assignedTo.id')
+                ->leftJoin('users as assignedTo', 'meeting_action_items.responsible_id', '=', 'assignedTo.id')
                 ->where('meeting_action_items.meeting_id', $id)
                 ->select(
                     'meeting_action_items.*',
                     'assignedTo.name as responsible_name'
                 )
-                ->orderBy('meeting_action_items.due_date')
+                ->orderBy('meeting_action_items.deadline')
                 ->get();
         }
 
@@ -1077,7 +1115,162 @@ class MeetingController extends Controller
             'actionItems'
         ));
     }
-    public function generateMinutesPdf($id) { return redirect()->back(); }
+
+    /**
+     * Generate PDF for meeting minutes.
+     */
+    public function generateMinutesPdf($id)
+    {
+        try {
+            $user = Auth::user();
+            
+            // Load meeting with relationships
+            $meeting = DB::table('meetings')
+                ->leftJoin('meeting_categories', 'meetings.category_id', '=', 'meeting_categories.id')
+                ->leftJoin('branches', 'meetings.branch_id', '=', 'branches.id')
+                ->leftJoin('users as creator', 'meetings.created_by', '=', 'creator.id')
+                ->select(
+                    'meetings.*',
+                    'meeting_categories.name as category_name',
+                    'branches.name as branch_name',
+                    'branches.code as branch_code',
+                    'creator.name as creator_name'
+                )
+                ->where('meetings.id', $id)
+                ->first();
+
+            if (!$meeting) {
+                abort(404, 'Meeting not found');
+            }
+
+            // Load meeting minutes
+            $minutes = DB::table('meeting_minutes')
+                ->leftJoin('users as preparedBy', 'meeting_minutes.prepared_by', '=', 'preparedBy.id')
+                ->leftJoin('users as approvedBy', 'meeting_minutes.approved_by', '=', 'approvedBy.id')
+                ->where('meeting_minutes.meeting_id', $id)
+                ->select(
+                    'meeting_minutes.*',
+                    'preparedBy.name as prepared_by_name',
+                    'approvedBy.name as approved_by_name'
+                )
+                ->first();
+
+            if (!$minutes) {
+                return redirect()->route('modules.meetings.show', $id)
+                    ->with('error', 'Minutes have not been created for this meeting yet.');
+            }
+
+            // Load participants
+            $participants = DB::table('meeting_participants')
+                ->leftJoin('users', function($join) {
+                    $join->on('meeting_participants.user_id', '=', 'users.id')
+                         ->where('meeting_participants.participant_type', '=', 'staff');
+                })
+                ->where('meeting_participants.meeting_id', $id)
+                ->select(
+                    'meeting_participants.*',
+                    'users.name as user_name',
+                    'users.email as user_email'
+                )
+                ->orderBy('meeting_participants.participant_type')
+                ->orderBy('meeting_participants.name')
+                ->get();
+
+            // Load attendees (participants who attended)
+            $attendees = DB::table('meeting_participants')
+                ->leftJoin('users', function($join) {
+                    $join->on('meeting_participants.user_id', '=', 'users.id')
+                         ->where('meeting_participants.participant_type', '=', 'staff');
+                })
+                ->where('meeting_participants.meeting_id', $id)
+                ->where(function($query) {
+                    $query->where('meeting_participants.attendance_status', 'attended')
+                          ->orWhere('meeting_participants.attendance_status', 'confirmed')
+                          ->orWhereNull('meeting_participants.attendance_status'); // Default to attended if not set
+                })
+                ->select(
+                    'meeting_participants.*',
+                    'users.name as user_name',
+                    'users.email as user_email'
+                )
+                ->orderBy('meeting_participants.participant_type')
+                ->orderBy('meeting_participants.name')
+                ->get();
+
+            // Load agendas with minutes data
+            $orderColumn = Schema::hasColumn('meeting_agendas', 'sort_order') ? 'sort_order' : 'order_index';
+            $agendas = DB::table('meeting_agendas')
+                ->leftJoin('users as presenter', 'meeting_agendas.presenter_id', '=', 'presenter.id')
+                ->where('meeting_agendas.meeting_id', $id)
+                ->select(
+                    'meeting_agendas.*',
+                    'presenter.name as presenter_name'
+                )
+                ->orderBy($orderColumn)
+                ->get();
+
+            // Load action items from minutes
+            $actionItems = collect(); // Initialize empty collection
+            if (Schema::hasTable('meeting_action_items')) {
+                $actionItems = DB::table('meeting_action_items')
+                    ->leftJoin('users as assignedTo', 'meeting_action_items.responsible_id', '=', 'assignedTo.id')
+                    ->where('meeting_action_items.meeting_id', $id)
+                    ->select(
+                        'meeting_action_items.*',
+                        'assignedTo.name as responsible_name'
+                    )
+                    ->orderBy('meeting_action_items.deadline')
+                    ->get();
+            }
+
+            // Get prepared by and approved by users
+            $preparedByUser = null;
+            $approvedByUser = null;
+            if (isset($minutes->prepared_by) && $minutes->prepared_by) {
+                $preparedByUser = DB::table('users')->where('id', $minutes->prepared_by)->first();
+            }
+            if (isset($minutes->approved_by) && $minutes->approved_by) {
+                $approvedByUser = DB::table('users')->where('id', $minutes->approved_by)->first();
+            }
+
+            // Convert to object for view compatibility
+            $meeting = (object) $meeting;
+            $minutes = (object) $minutes;
+
+            // Prepare data for PDF
+            $data = compact(
+                'meeting',
+                'minutes',
+                'participants',
+                'attendees',
+                'agendas',
+                'actionItems',
+                'preparedByUser',
+                'approvedByUser'
+            );
+
+            // Generate PDF
+            $pdf = Pdf::loadView('modules.meetings.minutes.pdf', $data);
+            $pdf->setPaper('A4', 'portrait');
+            $pdf->setOption('enable-local-file-access', true);
+            $pdf->setOption('isHtml5ParserEnabled', true);
+            $pdf->setOption('isRemoteEnabled', true);
+
+            $filename = 'Meeting_Minutes_' . (isset($meeting->reference_code) && $meeting->reference_code ? $meeting->reference_code : $meeting->id) . '_' . \Carbon\Carbon::parse($meeting->meeting_date)->format('Ymd') . '.pdf';
+
+            return $pdf->stream($filename);
+
+        } catch (\Exception $e) {
+            Log::error('Meeting Minutes PDF generation error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'meeting_id' => $id
+            ]);
+
+            return redirect()->route('modules.meetings.show', $id)
+                ->with('error', 'Failed to generate PDF: ' . $e->getMessage());
+        }
+    }
+
     public function minutesApproval($id) { return view('modules.meetings.minutes.approval'); }
     /**
      * Handle AJAX requests for meetings

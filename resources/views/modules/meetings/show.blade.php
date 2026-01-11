@@ -430,18 +430,18 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <strong>Prepared By:</strong>
-                            <p class="mb-0">{{ $minutes->prepared_by_name ?? 'N/A' }}</p>
+                            <p class="mb-0">{{ (property_exists($minutes, 'prepared_by_name') && $minutes->prepared_by_name) ? $minutes->prepared_by_name : 'N/A' }}</p>
                         </div>
-                        @if($minutes->approved_by_name)
+                        @if(property_exists($minutes, 'approved_by_name') && $minutes->approved_by_name)
                         <div class="col-md-6">
                             <strong>Approved By:</strong>
                             <p class="mb-0">{{ $minutes->approved_by_name }}</p>
-                            @if($minutes->approved_at)
+                            @if(property_exists($minutes, 'approved_at') && $minutes->approved_at)
                                 <small class="text-muted">{{ \Carbon\Carbon::parse($minutes->approved_at)->format('M d, Y h:i A') }}</small>
                             @endif
                         </div>
                         @endif
-                        @if($minutes->status)
+                        @if(property_exists($minutes, 'status') && $minutes->status)
                         <div class="col-md-6">
                             <strong>Status:</strong>
                             <p class="mb-0">
@@ -451,7 +451,7 @@
                             </p>
                         </div>
                         @endif
-                        @if($minutes->summary)
+                        @if(property_exists($minutes, 'summary') && $minutes->summary)
                         <div class="col-12">
                             <strong>Summary:</strong>
                             <p class="mb-0 mt-1">{{ nl2br(e($minutes->summary)) }}</p>
@@ -541,91 +541,136 @@
                             </div>
                         </div>
                     </div>
-                    <div class="d-grid">
-                        <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#participantsDetails">
-                            <i class="bx bx-list-ul me-1"></i> View All Participants
-                        </button>
-                    </div>
                 </div>
             </div>
 
-            <!-- Participants Details -->
-            <div class="collapse" id="participantsDetails">
-                <!-- Staff Participants -->
-                @if($staffParticipants->count() > 0)
-                <div class="card mb-4 border-0 shadow-sm">
-                    <div class="card-header bg-white border-bottom">
-                        <h5 class="card-title mb-0 fw-bold">
-                            <i class="bx bx-user me-2 text-primary"></i>Staff Participants ({{ $staffParticipants->count() }})
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="list-group list-group-flush">
-                            @foreach($staffParticipants as $participant)
-                            <div class="list-group-item px-0">
-                                <div class="d-flex align-items-center">
-                                    <div class="avatar avatar-sm me-3 bg-primary bg-opacity-10">
-                                        <i class="bx bx-user text-primary"></i>
-                                    </div>
-                                    <div class="flex-grow-1">
-                                        <h6 class="mb-0">{{ $participant->user_name ?? $participant->name }}</h6>
+            <!-- Participants Details Table -->
+            <div class="card mb-4 border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title mb-0 fw-bold">
+                        <i class="bx bx-list-ul me-2 text-primary"></i>All Participants
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 5%;">#</th>
+                                    <th style="width: 20%;">Name</th>
+                                    <th style="width: 20%;">Email</th>
+                                    <th style="width: 15%;">Phone</th>
+                                    <th style="width: 20%;">Institution/Organization</th>
+                                    <th style="width: 10%;">Type</th>
+                                    <th style="width: 10%;">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @php
+                                    $index = 1;
+                                @endphp
+                                
+                                <!-- Staff Participants -->
+                                @forelse($staffParticipants as $participant)
+                                <tr>
+                                    <td>{{ $index++ }}</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar avatar-sm me-2 bg-primary bg-opacity-10">
+                                                <i class="bx bx-user text-primary"></i>
+                                            </div>
+                                            <strong>{{ $participant->user_name ?? $participant->name }}</strong>
+                                        </div>
+                                    </td>
+                                    <td>
                                         @if($participant->user_email)
-                                            <small class="text-muted">{{ $participant->user_email }}</small>
+                                            <small>{{ $participant->user_email }}</small>
+                                        @else
+                                            <span class="text-muted">-</span>
                                         @endif
-                                    </div>
-                                    <span class="badge bg-{{ $participant->attendance_status == 'confirmed' ? 'success' : ($participant->attendance_status == 'declined' ? 'danger' : 'warning') }}">
-                                        {{ ucfirst(str_replace('_', ' ', $participant->attendance_status ?? 'invited')) }}
-                                    </span>
-                                </div>
-                            </div>
-                            @endforeach
-                        </div>
-                    </div>
-                </div>
-                @endif
-
-                <!-- External Participants -->
-                @if($externalParticipants->count() > 0)
-                <div class="card mb-4 border-0 shadow-sm">
-                    <div class="card-header bg-white border-bottom">
-                        <h5 class="card-title mb-0 fw-bold">
-                            <i class="bx bx-user-circle me-2 text-info"></i>External Participants ({{ $externalParticipants->count() }})
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="list-group list-group-flush">
-                            @foreach($externalParticipants as $participant)
-                            <div class="list-group-item px-0">
-                                <div class="d-flex align-items-center">
-                                    <div class="avatar avatar-sm me-3 bg-info bg-opacity-10">
-                                        <i class="bx bx-user-circle text-info"></i>
-                                    </div>
-                                    <div class="flex-grow-1">
-                                        <h6 class="mb-0">{{ $participant->name }}</h6>
-                                        @if($participant->email)
-                                            <small class="text-muted d-block">{{ $participant->email }}</small>
-                                        @endif
-                                        @if($participant->institution)
-                                            <small class="text-muted d-block">
-                                                <i class="bx bx-building me-1"></i>{{ $participant->institution }}
-                                            </small>
-                                        @endif
+                                    </td>
+                                    <td>
                                         @if($participant->phone)
-                                            <small class="text-muted d-block">
-                                                <i class="bx bx-phone me-1"></i>{{ $participant->phone }}
-                                            </small>
+                                            <small>{{ $participant->phone }}</small>
+                                        @else
+                                            <span class="text-muted">-</span>
                                         @endif
-                                    </div>
-                                    <span class="badge bg-{{ $participant->attendance_status == 'confirmed' ? 'success' : ($participant->attendance_status == 'declined' ? 'danger' : 'warning') }}">
-                                        {{ ucfirst(str_replace('_', ' ', $participant->attendance_status ?? 'invited')) }}
-                                    </span>
-                                </div>
-                            </div>
-                            @endforeach
-                        </div>
+                                    </td>
+                                    <td>
+                                        @if($participant->institution)
+                                            <small>{{ $participant->institution }}</small>
+                                        @else
+                                            <span class="text-muted">-</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">Staff</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ $participant->attendance_status == 'confirmed' || $participant->attendance_status == 'attended' ? 'success' : ($participant->attendance_status == 'declined' ? 'danger' : 'warning') }}">
+                                            {{ ucfirst(str_replace('_', ' ', $participant->attendance_status ?? 'invited')) }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                @empty
+                                @endforelse
+
+                                <!-- External Participants -->
+                                @forelse($externalParticipants as $participant)
+                                <tr>
+                                    <td>{{ $index++ }}</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar avatar-sm me-2 bg-info bg-opacity-10">
+                                                <i class="bx bx-user-circle text-info"></i>
+                                            </div>
+                                            <strong>{{ $participant->name }}</strong>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        @if($participant->email)
+                                            <small>{{ $participant->email }}</small>
+                                        @else
+                                            <span class="text-muted">-</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if($participant->phone)
+                                            <small>{{ $participant->phone }}</small>
+                                        @else
+                                            <span class="text-muted">-</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if($participant->institution)
+                                            <small>{{ $participant->institution }}</small>
+                                        @else
+                                            <span class="text-muted">-</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">External</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ $participant->attendance_status == 'confirmed' || $participant->attendance_status == 'attended' ? 'success' : ($participant->attendance_status == 'declined' ? 'danger' : 'warning') }}">
+                                            {{ ucfirst(str_replace('_', ' ', $participant->attendance_status ?? 'invited')) }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                @empty
+                                @endforelse
+
+                                @if($staffParticipants->count() == 0 && $externalParticipants->count() == 0)
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted py-4">
+                                        <i class="bx bx-info-circle me-2"></i>No participants found
+                                    </td>
+                                </tr>
+                                @endif
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-                @endif
             </div>
 
             <!-- Meeting Status & Information -->
