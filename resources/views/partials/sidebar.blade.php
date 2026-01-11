@@ -164,8 +164,8 @@
 
 
   <!-- Task Management -->
-  <li class="menu-item {{ request()->routeIs('modules.tasks') ? 'active' : '' }}">
-    <a href="{{ route('modules.tasks') }}" class="menu-link">
+  <li class="menu-item {{ request()->routeIs('modules.tasks.*') ? 'active' : '' }}">
+    <a href="{{ route('modules.tasks.index') }}" class="menu-link">
       <i class="menu-icon tf-icons bx bx-clipboard"></i>
       <div data-i18n="Task Management" style="font-weight: bold;">Task Management</div>
     </a>

@@ -169,6 +169,102 @@
     <div class="row">
         <!-- Main Content -->
         <div class="col-lg-8">
+            <!-- Progress Tracking -->
+            <div class="card mb-4 border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="card-title mb-0 fw-bold">
+                        <i class="bx bx-task me-2 text-primary"></i>Progress Tracking
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-3">
+                            <div class="text-center p-3 rounded" style="background: {{ $meeting->status === 'draft' ? '#e9ecef' : '#fff3cd' }}; border: 2px solid {{ $meeting->status === 'draft' ? '#6c757d' : '#ffc107' }};">
+                                <i class="bx bx-edit fs-2 mb-2" style="color: {{ $meeting->status === 'draft' ? '#6c757d' : '#ffc107' }};"></i>
+                                <h6 class="mb-1 fw-bold">Draft</h6>
+                                <small class="text-muted">Meeting Created</small>
+                                @if($meeting->status === 'draft')
+                                    <div class="mt-2">
+                                        <span class="badge bg-dark">Current</span>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-3 rounded" style="background: {{ $meeting->status === 'pending_approval' ? '#fff3cd' : ($meeting->status === 'approved' || $meeting->status === 'completed' ? '#d4edda' : '#e9ecef') }}; border: 2px solid {{ $meeting->status === 'pending_approval' ? '#ffc107' : ($meeting->status === 'approved' || $meeting->status === 'completed' ? '#28a745' : '#dee2e6') }};">
+                                <i class="bx bx-time-five fs-2 mb-2" style="color: {{ $meeting->status === 'pending_approval' ? '#ffc107' : ($meeting->status === 'approved' || $meeting->status === 'completed' ? '#28a745' : '#6c757d') }};"></i>
+                                <h6 class="mb-1 fw-bold">Pending Approval</h6>
+                                <small class="text-muted">Awaiting Review</small>
+                                @if($meeting->status === 'pending_approval')
+                                    <div class="mt-2">
+                                        <span class="badge bg-warning">Current</span>
+                                    </div>
+                                @elseif($meeting->status === 'approved' || $meeting->status === 'completed')
+                                    <div class="mt-2">
+                                        <i class="bx bx-check-circle text-success"></i>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-3 rounded" style="background: {{ $meeting->status === 'approved' || $meeting->status === 'completed' ? '#d4edda' : '#e9ecef' }}; border: 2px solid {{ $meeting->status === 'approved' || $meeting->status === 'completed' ? '#28a745' : '#dee2e6' }};">
+                                <i class="bx bx-check-circle fs-2 mb-2" style="color: {{ $meeting->status === 'approved' || $meeting->status === 'completed' ? '#28a745' : '#6c757d' }};"></i>
+                                <h6 class="mb-1 fw-bold">Approved</h6>
+                                <small class="text-muted">Meeting Approved</small>
+                                @if($meeting->status === 'approved' || $meeting->status === 'completed')
+                                    <div class="mt-2">
+                                        <i class="bx bx-check-circle text-success"></i>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-3 rounded" style="background: {{ $minutes && property_exists($minutes, 'status') && $minutes->status === 'approved' ? '#d4edda' : ($minutes ? '#fff3cd' : '#e9ecef') }}; border: 2px solid {{ $minutes && property_exists($minutes, 'status') && $minutes->status === 'approved' ? '#28a745' : ($minutes ? '#ffc107' : '#dee2e6') }};">
+                                <i class="bx bx-file fs-2 mb-2" style="color: {{ $minutes && property_exists($minutes, 'status') && $minutes->status === 'approved' ? '#28a745' : ($minutes ? '#ffc107' : '#6c757d') }};"></i>
+                                <h6 class="mb-1 fw-bold">Minutes</h6>
+                                <small class="text-muted">{{ $minutes ? 'Created' : 'Not Created' }}</small>
+                                @if($minutes && property_exists($minutes, 'status') && $minutes->status === 'approved')
+                                    <div class="mt-2">
+                                        <i class="bx bx-check-circle text-success"></i>
+                                    </div>
+                                @elseif($minutes)
+                                    <div class="mt-2">
+                                        <span class="badge bg-warning">{{ ucfirst($minutes->status ?? 'Draft') }}</span>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                    
+                    @if(count($approvalHistory) > 0)
+                    <div class="mt-4">
+                        <h6 class="fw-bold mb-3">Approval History</h6>
+                        <div class="timeline-item {{ $meeting->status === 'approved' ? 'approved' : ($meeting->status === 'rejected' ? 'rejected' : 'submitted') }}">
+                            @foreach($approvalHistory as $history)
+                            <div class="timeline-item {{ $history['type'] }}">
+                                <div class="timeline-marker"></div>
+                                <div class="ms-4">
+                                    <h6 class="mb-1 fw-semibold">{{ $history['action'] }}</h6>
+                                    <p class="mb-1 text-muted small">
+                                        <i class="bx bx-user me-1"></i>{{ $history['user'] }}
+                                    </p>
+                                    <p class="mb-0 text-muted small">
+                                        <i class="bx bx-calendar me-1"></i>{{ \Carbon\Carbon::parse($history['date'])->format('M d, Y h:i A') }}
+                                    </p>
+                                    @if(isset($history['reason']) && $history['reason'])
+                                        <p class="mb-0 mt-2 text-muted small">
+                                            <strong>Reason:</strong> {{ $history['reason'] }}
+                                        </p>
+                                    @endif
+                                </div>
+                            </div>
+                            @endforeach
+                        </div>
+                    </div>
+                    @endif
+                </div>
+            </div>
+
             <!-- Meeting Information -->
             <div class="card mb-4 border-0 shadow-sm">
                 <div class="card-header bg-white border-bottom">

@@ -920,6 +920,12 @@ class MeetingController extends Controller
             abort(403, 'You do not have permission to create minutes for this meeting');
         }
 
+        // Check if meeting is approved - only allow minutes creation for approved or completed meetings
+        if ($meeting->status !== 'approved' && $meeting->status !== 'completed') {
+            return redirect()->route('modules.meetings.show', $id)
+                ->with('error', 'Minutes can only be created for approved or completed meetings. Current status: ' . ucfirst(str_replace('_', ' ', $meeting->status)));
+        }
+
         // Load participants
         $participants = DB::table('meeting_participants')
             ->leftJoin('users', function($join) {

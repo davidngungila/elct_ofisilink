@@ -358,11 +358,29 @@ Route::middleware(['auth'])->group(function () {
     });
     
     // Task Management Routes
-    Route::get('/modules/tasks', [App\Http\Controllers\TaskController::class, 'index'])->name('modules.tasks');
+    // Specific routes must come before parameterized routes
+    Route::get('/modules/tasks', [App\Http\Controllers\TaskController::class, 'index'])->name('modules.tasks.index');
     Route::get('/modules/tasks/create', [App\Http\Controllers\TaskController::class, 'create'])->name('modules.tasks.create');
-    Route::post('/modules/tasks/action', [App\Http\Controllers\TaskController::class, 'action'])->name('modules.tasks.action');
+    Route::get('/modules/tasks/analytics', [App\Http\Controllers\TaskController::class, 'analytics'])->name('modules.tasks.analytics');
+    Route::get('/modules/tasks/categories', [App\Http\Controllers\TaskController::class, 'categories'])->name('modules.tasks.categories');
     Route::get('/modules/tasks/pdf', [App\Http\Controllers\TaskController::class, 'generatePdf'])->name('modules.tasks.pdf');
     Route::get('/modules/tasks/analytics-pdf', [App\Http\Controllers\TaskController::class, 'analyticsPdf'])->name('modules.tasks.analytics.pdf');
+    Route::post('/modules/tasks/action', [App\Http\Controllers\TaskController::class, 'action'])->name('modules.tasks.action');
+    
+    // Task Reports Routes (specific routes before {id})
+    Route::get('/modules/tasks/reports', [App\Http\Controllers\TaskController::class, 'reports'])->name('modules.tasks.reports');
+    Route::get('/modules/tasks/reports/pending-approval', [App\Http\Controllers\TaskController::class, 'pendingApprovalReports'])->name('modules.tasks.reports.pending-approval');
+    
+    // Task Activities Routes (specific routes before {id})
+    Route::get('/modules/tasks/activities/{activityId}', [App\Http\Controllers\TaskController::class, 'showActivity'])->name('modules.tasks.activities.show');
+    Route::get('/modules/tasks/activities/{activityId}/edit', [App\Http\Controllers\TaskController::class, 'editActivity'])->name('modules.tasks.activities.edit');
+    Route::get('/modules/tasks/activities/{activityId}/report-progress', [App\Http\Controllers\TaskController::class, 'reportProgress'])->name('modules.tasks.activities.report-progress');
+    
+    // Parameterized routes (must be last to avoid conflicts)
+    Route::get('/modules/tasks/{taskId}/activities/create', [App\Http\Controllers\TaskController::class, 'createActivity'])->name('modules.tasks.activities.create');
+    Route::get('/modules/tasks/{id}/edit', [App\Http\Controllers\TaskController::class, 'edit'])->name('modules.tasks.edit');
+    Route::get('/modules/tasks/{id}', [App\Http\Controllers\TaskController::class, 'show'])->name('modules.tasks.show');
+    Route::get('/modules/tasks/reports/{id}', [App\Http\Controllers\TaskController::class, 'showReport'])->name('modules.tasks.reports.show');
     
     // Assessments Module Routes
     Route::get('/modules/assessments', [App\Http\Controllers\AssessmentController::class, 'index'])->name('modules.assessments');
