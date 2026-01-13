@@ -90,56 +90,75 @@ class MeetingController extends Controller
             $canEdit = $canManageMeetings || ($createdById && $createdById == $user->id);
 
             // Load participants
-            $participants = DB::table('meeting_participants')
-                ->leftJoin('users', function($join) {
-                    $join->on('meeting_participants.user_id', '=', 'users.id')
-                         ->where('meeting_participants.participant_type', '=', 'staff');
-                })
-                ->where('meeting_participants.meeting_id', $id)
-                ->select(
-                    'meeting_participants.*',
-                    'users.name as user_name',
-                    'users.email as user_email'
-                )
-                ->orderBy('meeting_participants.participant_type')
-                ->orderBy('meeting_participants.name')
-                ->get();
+            try {
+                $participants = DB::table('meeting_participants')
+                    ->leftJoin('users', function($join) {
+                        $join->on('meeting_participants.user_id', '=', 'users.id')
+                             ->where('meeting_participants.participant_type', '=', 'staff');
+                    })
+                    ->where('meeting_participants.meeting_id', $id)
+                    ->select(
+                        'meeting_participants.*',
+                        'users.name as user_name',
+                        'users.email as user_email'
+                    )
+                    ->orderBy('meeting_participants.participant_type')
+                    ->orderBy('meeting_participants.name')
+                    ->get();
+            } catch (\Exception $e) {
+                Log::error('Error loading participants: ' . $e->getMessage());
+                $participants = collect([]);
+            }
 
             // Load agendas with documents
-            $orderColumn = Schema::hasColumn('meeting_agendas', 'sort_order') ? 'sort_order' : 'order_index';
-            $agendas = DB::table('meeting_agendas')
-                ->leftJoin('users as presenter', 'meeting_agendas.presenter_id', '=', 'presenter.id')
-                ->where('meeting_agendas.meeting_id', $id)
-                ->select(
-                    'meeting_agendas.*',
-                    'presenter.name as presenter_name'
-                )
-                ->orderBy($orderColumn)
-                ->get()
-                ->map(function($agenda) {
-                    // Load documents for each agenda
-                    $documents = DB::table('meeting_agenda_documents')
-                        ->where('meeting_agenda_id', $agenda->id)
-                        ->get();
-                    $agenda->documents = $documents;
-                    return $agenda;
-                });
+            try {
+                $orderColumn = Schema::hasColumn('meeting_agendas', 'sort_order') ? 'sort_order' : 'order_index';
+                $agendas = DB::table('meeting_agendas')
+                    ->leftJoin('users as presenter', 'meeting_agendas.presenter_id', '=', 'presenter.id')
+                    ->where('meeting_agendas.meeting_id', $id)
+                    ->select(
+                        'meeting_agendas.*',
+                        'presenter.name as presenter_name'
+                    )
+                    ->orderBy($orderColumn)
+                    ->get()
+                    ->map(function($agenda) {
+                        // Load documents for each agenda
+                        try {
+                            $documents = DB::table('meeting_agenda_documents')
+                                ->where('meeting_agenda_id', $agenda->id ?? 0)
+                                ->get();
+                            $agenda->documents = $documents ?: collect([]);
+                        } catch (\Exception $e) {
+                            $agenda->documents = collect([]);
+                        }
+                        return $agenda;
+                    });
+            } catch (\Exception $e) {
+                Log::error('Error loading agendas: ' . $e->getMessage());
+                $agendas = collect([]);
+            }
 
             // Load meeting minutes
-            $minutes = DB::table('meeting_minutes')
-                ->leftJoin('users as preparedBy', 'meeting_minutes.prepared_by', '=', 'preparedBy.id')
-                ->leftJoin('users as approvedBy', 'meeting_minutes.approved_by', '=', 'approvedBy.id')
-                ->where('meeting_minutes.meeting_id', $id)
-                ->select(
-                    'meeting_minutes.*',
-                    'preparedBy.name as prepared_by_name',
-                    'approvedBy.name as approved_by_name'
-                )
-                ->first();
+            try {
+                $minutes = DB::table('meeting_minutes')
+                    ->leftJoin('users as preparedBy', 'meeting_minutes.prepared_by', '=', 'preparedBy.id')
+                    ->leftJoin('users as approvedBy', 'meeting_minutes.approved_by', '=', 'approvedBy.id')
+                    ->where('meeting_minutes.meeting_id', $id)
+                    ->select(
+                        'meeting_minutes.*',
+                        'preparedBy.name as prepared_by_name',
+                        'approvedBy.name as approved_by_name'
+                    )
+                    ->first();
+            } catch (\Exception $e) {
+                Log::error('Error loading minutes: ' . $e->getMessage());
+                $minutes = null;
+            }
 
             // Separate participants into staff and external
-            $staffParticipants = $participants->where('participant_type', 'staff');
-            $externalParticipants = $participants->where('participant_type', 'external');
+            $staffParticipants = $participants ? $participants->where('participant_type', 'staff') : collect([]);
+            $externalParticipants = $participants ? $participants->where('participant_type', 'external') : collect([]);
 
             // Load approval history
             $approvalHistory = [];
@@ -177,15 +196,16 @@ class MeetingController extends Controller
 
             // Calculate statistics
             $stats = [
-                'total_participants' => $participants->count(),
-                'staff_participants' => $staffParticipants->count(),
-                'external_participants' => $externalParticipants->count(),
-                'total_agendas' => $agendas->count(),
-                'total_documents' => $agendas->sum(function($agenda) {
-                    return isset($agenda->documents) ? $agenda->documents->count() : 0;
-                }),
-                'confirmed_attendees' => $participants->where('attendance_status', 'confirmed')->count(),
-                'invited_count' => $participants->where('attendance_status', 'invited')->count(),
+                'total_participants' => $participants ? $participants->count() : 0,
+                'staff_participants' => $staffParticipants ? $staffParticipants->count() : 0,
+                'external_participants' => $externalParticipants ? $externalParticipants->count() : 0,
+                'total_agendas' => $agendas ? $agendas->count() : 0,
+                'total_documents' => $agendas ? $agendas->sum(function($agenda) {
+                    return (isset($agenda->documents) && is_object($agenda->documents) && method_exists($agenda->documents, 'count')) 
+                        ? $agenda->documents->count() : 0;
+                }) : 0,
+                'confirmed_attendees' => $participants ? $participants->where('attendance_status', 'confirmed')->count() : 0,
+                'invited_count' => $participants ? $participants->where('attendance_status', 'invited')->count() : 0,
             ];
 
             // Get updated by user (check if column exists first)
@@ -200,6 +220,11 @@ class MeetingController extends Controller
             // Convert to object for view compatibility
             $meeting = (object) $meeting;
             $minutes = $minutes ? (object) $minutes : null;
+            
+            // Ensure agendas is a collection
+            if (!$agendas) {
+                $agendas = collect([]);
+            }
 
             return view('modules.meetings.show', compact(
                 'meeting', 
