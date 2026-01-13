@@ -513,100 +513,150 @@ class MeetingController extends Controller
      */
     public function edit($id)
     {
-        $user = Auth::user();
-        
-        // Load meeting with relationships
-        $meeting = DB::table('meetings')
-            ->leftJoin('meeting_categories', 'meetings.category_id', '=', 'meeting_categories.id')
-            ->leftJoin('branches', 'meetings.branch_id', '=', 'branches.id')
-            ->leftJoin('users as creator', 'meetings.created_by', '=', 'creator.id')
-            ->select(
-                'meetings.*',
-                'meeting_categories.name as category_name',
-                'branches.name as branch_name',
-                'creator.name as creator_name'
-            )
-            ->where('meetings.id', $id)
-            ->first();
+        try {
+            $user = Auth::user();
+            
+            // Load meeting with relationships
+            $meeting = DB::table('meetings')
+                ->leftJoin('meeting_categories', 'meetings.category_id', '=', 'meeting_categories.id')
+                ->leftJoin('branches', 'meetings.branch_id', '=', 'branches.id')
+                ->leftJoin('users as creator', 'meetings.created_by', '=', 'creator.id')
+                ->select(
+                    'meetings.*',
+                    'meeting_categories.name as category_name',
+                    'branches.name as branch_name',
+                    'creator.name as creator_name'
+                )
+                ->where('meetings.id', $id)
+                ->first();
 
-        if (!$meeting) {
-            abort(404, 'Meeting not found');
+            if (!$meeting) {
+                abort(404, 'Meeting not found');
+            }
+
+            // Check permissions - safely get created_by
+            $canManageMeetings = $user->hasPermission('manage_meetings') || 
+                                $user->hasAnyRole(['System Admin', 'admin', 'super_admin', 'hod', 'ceo', 'General Manager', 'HR Officer']);
+            
+            $createdById = property_exists($meeting, 'created_by') ? $meeting->created_by : null;
+            $canEdit = $canManageMeetings || ($createdById && $createdById == $user->id);
+            
+            if (!$canEdit) {
+                abort(403, 'You do not have permission to edit this meeting');
+            }
+
+            // Load participants
+            try {
+                $participants = DB::table('meeting_participants')
+                    ->leftJoin('users', function($join) {
+                        $join->on('meeting_participants.user_id', '=', 'users.id')
+                             ->where('meeting_participants.participant_type', '=', 'staff');
+                    })
+                    ->where('meeting_participants.meeting_id', $id)
+                    ->select(
+                        'meeting_participants.*',
+                        'users.name as user_name',
+                        'users.email as user_email'
+                    )
+                    ->orderBy('meeting_participants.participant_type')
+                    ->orderBy('meeting_participants.name')
+                    ->get();
+            } catch (\Exception $e) {
+                Log::error('Error loading participants in edit: ' . $e->getMessage());
+                $participants = collect([]);
+            }
+
+            // Extract staff participant IDs for form
+            $staffParticipantIds = $participants ? $participants->where('participant_type', 'staff')
+                ->pluck('user_id')
+                ->filter()
+                ->toArray() : [];
+            
+            // Load external participants
+            try {
+                $externalParticipants = DB::table('meeting_participants')
+                    ->where('meeting_participants.meeting_id', $id)
+                    ->where('meeting_participants.participant_type', 'external')
+                    ->get();
+            } catch (\Exception $e) {
+                Log::error('Error loading external participants in edit: ' . $e->getMessage());
+                $externalParticipants = collect([]);
+            }
+
+            // Load agendas
+            try {
+                $orderColumn = Schema::hasColumn('meeting_agendas', 'sort_order') ? 'sort_order' : 'order_index';
+                $agendas = DB::table('meeting_agendas')
+                    ->leftJoin('users as presenter', 'meeting_agendas.presenter_id', '=', 'presenter.id')
+                    ->where('meeting_agendas.meeting_id', $id)
+                    ->select(
+                        'meeting_agendas.*',
+                        'presenter.name as presenter_name'
+                    )
+                    ->orderBy($orderColumn)
+                    ->get();
+            } catch (\Exception $e) {
+                Log::error('Error loading agendas in edit: ' . $e->getMessage());
+                $agendas = collect([]);
+            }
+
+            // Get form data (same as create method)
+            try {
+                $categories = \App\Models\MeetingCategory::where('is_active', true)->orderBy('name')->get();
+            } catch (\Exception $e) {
+                Log::error('Error loading categories in edit: ' . $e->getMessage());
+                $categories = collect([]);
+            }
+            
+            try {
+                $branches = \App\Models\Branch::where('is_active', true)->orderBy('name')->get();
+            } catch (\Exception $e) {
+                Log::error('Error loading branches in edit: ' . $e->getMessage());
+                $branches = collect([]);
+            }
+            
+            try {
+                $departments = \App\Models\Department::where('is_active', true)->orderBy('name')->get();
+            } catch (\Exception $e) {
+                Log::error('Error loading departments in edit: ' . $e->getMessage());
+                $departments = collect([]);
+            }
+            
+            try {
+                $users = \App\Models\User::with(['primaryDepartment', 'employee'])
+                    ->where('is_active', true)
+                    ->orderBy('name')
+                    ->get();
+            } catch (\Exception $e) {
+                Log::error('Error loading users in edit: ' . $e->getMessage());
+                $users = collect([]);
+            }
+
+            // Convert to object for view compatibility and add staff_participants array
+            $meeting = (object) $meeting;
+            $meeting->staff_participants = $staffParticipantIds;
+            $meeting->external_participants_data = $externalParticipants;
+
+            return view('modules.meetings.edit', compact(
+                'meeting',
+                'categories',
+                'branches',
+                'departments',
+                'users',
+                'participants',
+                'agendas',
+                'externalParticipants'
+            ));
+        } catch (\Exception $e) {
+            Log::error('Error loading meeting edit page: ' . $e->getMessage(), [
+                'meeting_id' => $id,
+                'user_id' => Auth::id(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return redirect()->route('modules.meetings.index')
+                ->with('error', 'Failed to load meeting edit page: ' . $e->getMessage());
         }
-
-        // Check permissions
-        $canManageMeetings = $user->hasPermission('manage_meetings') || 
-                            $user->hasAnyRole(['System Admin', 'admin', 'super_admin', 'hod', 'ceo', 'General Manager', 'HR Officer']);
-        
-        $canEdit = $canManageMeetings || $meeting->created_by == $user->id;
-        
-        if (!$canEdit) {
-            abort(403, 'You do not have permission to edit this meeting');
-        }
-
-        // Load participants
-        $participants = DB::table('meeting_participants')
-            ->leftJoin('users', function($join) {
-                $join->on('meeting_participants.user_id', '=', 'users.id')
-                     ->where('meeting_participants.participant_type', '=', 'staff');
-            })
-            ->where('meeting_participants.meeting_id', $id)
-            ->select(
-                'meeting_participants.*',
-                'users.name as user_name',
-                'users.email as user_email'
-            )
-            ->orderBy('meeting_participants.participant_type')
-            ->orderBy('meeting_participants.name')
-            ->get();
-
-        // Extract staff participant IDs for form
-        $staffParticipantIds = $participants->where('participant_type', 'staff')
-            ->pluck('user_id')
-            ->filter()
-            ->toArray();
-        
-        // Load external participants
-        $externalParticipants = DB::table('meeting_participants')
-            ->where('meeting_participants.meeting_id', $id)
-            ->where('meeting_participants.participant_type', 'external')
-            ->get();
-
-        // Load agendas
-        $orderColumn = Schema::hasColumn('meeting_agendas', 'sort_order') ? 'sort_order' : 'order_index';
-        $agendas = DB::table('meeting_agendas')
-            ->leftJoin('users as presenter', 'meeting_agendas.presenter_id', '=', 'presenter.id')
-            ->where('meeting_agendas.meeting_id', $id)
-            ->select(
-                'meeting_agendas.*',
-                'presenter.name as presenter_name'
-            )
-            ->orderBy($orderColumn)
-            ->get();
-
-        // Get form data (same as create method)
-        $categories = \App\Models\MeetingCategory::where('is_active', true)->orderBy('name')->get();
-        $branches = \App\Models\Branch::where('is_active', true)->orderBy('name')->get();
-        $departments = \App\Models\Department::where('is_active', true)->orderBy('name')->get();
-        $users = \App\Models\User::with(['primaryDepartment', 'employee'])
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get();
-
-        // Convert to object for view compatibility and add staff_participants array
-        $meeting = (object) $meeting;
-        $meeting->staff_participants = $staffParticipantIds;
-        $meeting->external_participants_data = $externalParticipants;
-
-        return view('modules.meetings.edit', compact(
-            'meeting',
-            'categories',
-            'branches',
-            'departments',
-            'users',
-            'participants',
-            'agendas',
-            'externalParticipants'
-        ));
     }
     /**
      * Update the specified meeting in storage.
