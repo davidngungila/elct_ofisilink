@@ -558,7 +558,7 @@ class TrainingController extends Controller
         $permissionDates = [];
         
         if ($permissionRequestId) {
-            $permissionRequest = \App\Models\PermissionRequest::where('id', $permissionRequestId)
+            $permissionRequest = PermissionRequest::where('id', $permissionRequestId)
                 ->where('user_id', $user->id)
                 ->where('status', 'approved')
                 ->first();
@@ -568,7 +568,7 @@ class TrainingController extends Controller
             }
         } else {
             // Auto-detect permission request for this training
-            $permissionRequest = \App\Models\PermissionRequest::where('user_id', $user->id)
+            $permissionRequest = PermissionRequest::where('user_id', $user->id)
                 ->where(function($q) use ($training) {
                     $q->where('training_id', $training->id)
                       ->orWhere('is_for_training', true);
