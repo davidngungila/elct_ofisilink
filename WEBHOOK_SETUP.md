@@ -129,6 +129,107 @@ The webhook automatically:
 - Check PHP version and Laravel requirements
 - Review `storage/logs/webhook-deploy.log` for errors
 
+### cPanel Git Version Control Error: "Diverging branches can't be fast-forwarded"
+
+This error occurs when the server's local branch and the remote branch have diverged. Here's how to fix it:
+
+#### Option 1: Use the Updated Script (Recommended)
+
+1. **Via cPanel Terminal/SSH:**
+   ```bash
+   cd /path/to/your/project
+   chmod +x cpanel-update.sh
+   ./cpanel-update.sh
+   ```
+   
+   The script will automatically:
+   - Try to merge changes
+   - If merge fails, try rebase
+   - Show you what's different if both fail
+
+#### Option 2: Manual Resolution via SSH/Terminal
+
+1. **SSH into your server** or use cPanel Terminal
+
+2. **Navigate to your project:**
+   ```bash
+   cd /path/to/your/project
+   ```
+
+3. **Fetch latest changes:**
+   ```bash
+   git fetch origin
+   ```
+
+4. **Check what's different:**
+   ```bash
+   # See commits on remote not in local
+   git log HEAD..origin/main --oneline
+   
+   # See commits in local not on remote
+   git log origin/main..HEAD --oneline
+   ```
+
+5. **Choose a resolution method:**
+
+   **A. Rebase (cleaner history, recommended):**
+   ```bash
+   git pull --rebase origin main
+   ```
+
+   **B. Merge (creates merge commit):**
+   ```bash
+   git pull --no-ff origin main
+   ```
+
+   **C. Reset to match remote (WARNING: Discards local changes):**
+   ```bash
+   # Create backup first
+   git branch backup-$(date +%Y%m%d-%H%M%S)
+   
+   # Reset to match remote
+   git reset --hard origin/main
+   ```
+
+#### Option 3: Use Reset Script (Discards Local Changes)
+
+If you want to match the remote exactly and don't need local changes:
+
+```bash
+cd /path/to/your/project
+chmod +x cpanel-update-reset.sh
+./cpanel-update-reset.sh
+```
+
+#### Option 4: Fix via cPanel Git Version Control
+
+1. Go to **cPanel > Git Version Control**
+2. Click on your repository
+3. If you see the error, click **"Pull or Deploy"**
+4. In the command box, use one of these:
+
+   **For rebase:**
+   ```bash
+   git fetch origin && git pull --rebase origin main
+   ```
+
+   **For merge:**
+   ```bash
+   git fetch origin && git pull --no-ff origin main
+   ```
+
+   **To reset (discards local changes):**
+   ```bash
+   git fetch origin && git reset --hard origin/main
+   ```
+
+#### Preventing Future Divergence
+
+To prevent this issue:
+- Always pull before making changes on the server
+- Use the webhook deployment system instead of manual updates
+- Avoid making commits directly on the server
+
 ## Manual Deployment
 
 If webhook fails, you can deploy manually:
