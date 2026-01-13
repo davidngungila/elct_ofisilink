@@ -201,14 +201,40 @@ chmod +x cpanel-update-reset.sh
 ./cpanel-update-reset.sh
 ```
 
-#### Option 4: Fix via cPanel Git Version Control
+#### Option 4: Use Safe Update Script (Handles Uncommitted Changes)
+
+If you have uncommitted changes, use the safe update script:
+
+```bash
+cd /path/to/your/project
+chmod +x cpanel-update-safe.sh
+./cpanel-update-safe.sh
+```
+
+This script will:
+- Detect uncommitted changes
+- Give you options to stash, discard, or cancel
+- Update the code safely
+- Restore stashed changes after update
+
+#### Option 5: Fix via cPanel Git Version Control
 
 1. Go to **cPanel > Git Version Control**
 2. Click on your repository
 3. If you see the error, click **"Pull or Deploy"**
 4. In the command box, use one of these:
 
-   **For rebase:**
+   **If you have uncommitted changes, stash them first:**
+   ```bash
+   git stash && git fetch origin && git pull --rebase origin main && git stash pop
+   ```
+
+   **Or discard changes and update:**
+   ```bash
+   git reset --hard HEAD && git clean -fd && git fetch origin && git pull --rebase origin main
+   ```
+
+   **For rebase (only if no uncommitted changes):**
    ```bash
    git fetch origin && git pull --rebase origin main
    ```
