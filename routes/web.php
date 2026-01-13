@@ -25,6 +25,7 @@ use App\Http\Controllers\CashBankController;
 use App\Http\Controllers\TaxController;
 use App\Http\Controllers\FixedAssetController;
 use App\Http\Controllers\MeetingController;
+use App\Http\Controllers\TrainingController;
 
 // Helper function to get subdomain
 if (!function_exists('getSubdomain')) {
@@ -213,6 +214,29 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/{meeting}/submit', [MeetingController::class, 'submitForApproval'])->name('submit');
         Route::post('/{meeting}/approve', [MeetingController::class, 'approve'])->name('approve');
         Route::post('/{meeting}/reject', [MeetingController::class, 'reject'])->name('reject');
+    });
+
+    // Training Management Routes
+    Route::prefix('trainings')->name('trainings.')->group(function () {
+        Route::get('/', [TrainingController::class, 'index'])->name('index');
+        Route::get('/search', [TrainingController::class, 'search'])->name('search');
+        Route::get('/analytics', [TrainingController::class, 'analytics'])->name('analytics');
+        Route::get('/calendar', [TrainingController::class, 'calendar'])->name('calendar');
+        Route::get('/export-pdf', [TrainingController::class, 'exportPdf'])->name('export-pdf');
+        Route::get('/create', [TrainingController::class, 'create'])->name('create');
+        Route::post('/', [TrainingController::class, 'store'])->name('store');
+        Route::get('/{training}', [TrainingController::class, 'show'])->name('show');
+        Route::get('/{training}/edit', [TrainingController::class, 'edit'])->name('edit');
+        Route::put('/{training}', [TrainingController::class, 'update'])->name('update');
+        Route::delete('/{training}', [TrainingController::class, 'destroy'])->name('destroy');
+        Route::get('/{training}/submit', [TrainingController::class, 'showSubmitForm'])->name('submit');
+        Route::post('/{training}/submit', [TrainingController::class, 'submit'])->name('submit.store');
+        Route::get('/{training}/report', [TrainingController::class, 'showReportForm'])->name('report');
+        Route::post('/{training}/report', [TrainingController::class, 'storeReport'])->name('store-report');
+        Route::get('/{training}/evaluation', [TrainingController::class, 'showEvaluation'])->name('evaluation');
+        Route::post('/{training}/evaluation', [TrainingController::class, 'storeEvaluation'])->name('evaluation.store');
+        Route::post('/{training}/send-notifications', [TrainingController::class, 'sendNotifications'])->name('send-notifications');
+        Route::delete('/{training}/documents/{document}', [TrainingController::class, 'deleteDocument'])->name('delete-document');
     });
 
     // Account Settings

@@ -15,6 +15,7 @@
     $isAccountant = in_array('Accountant', $userRoles);
     $isHR = in_array('HR Officer', $userRoles);
     $isStaff = in_array('Staff', $userRoles);
+    $isGeneralManager = in_array('General Manager', $userRoles);
   @endphp
 
   <!-- Petty Cash Management - Direct link to dashboard -->
@@ -124,6 +125,15 @@
           <div data-i18n="Permissions" style="font-weight: bold;">Permissions</div>
         </a>
       </li>
+      
+      <!-- Training Management - Available to HR, HOD, System Admin, General Manager, CEO -->
+      @if($isHR || $isHOD || $isSystemAdmin || $isGeneralManager || $isCEO)
+      <li class="menu-item {{ request()->routeIs('trainings.*') ? 'active' : '' }}">
+        <a href="{{ route('trainings.index') }}" class="menu-link">
+          <div data-i18n="Training Management" style="font-weight: bold;">Training Management</div>
+        </a>
+      </li>
+      @endif
       
       <!-- Payroll - Available to ALL (access controlled in controller) -->
       <li class="menu-item {{ request()->routeIs('modules.hr.payroll*') ? 'active' : '' }}">

@@ -95,6 +95,11 @@ class RolePermissionSeeder extends Seeder
             ['name' => 'assessments.create', 'display_name' => 'Create Assessments', 'module' => 'Assessment'],
             ['name' => 'assessments.edit', 'display_name' => 'Edit Assessments', 'module' => 'Assessment'],
             
+            // Training Management
+            ['name' => 'trainings.view', 'display_name' => 'View Trainings', 'module' => 'Training Management'],
+            ['name' => 'trainings.manage', 'display_name' => 'Manage Trainings', 'module' => 'Training Management'],
+            ['name' => 'trainings.report', 'display_name' => 'Report on Trainings', 'module' => 'Training Management'],
+            
             // System Administration
             ['name' => 'system.settings', 'display_name' => 'System Settings', 'module' => 'System Administration'],
             ['name' => 'activity.logs', 'display_name' => 'Activity Logs', 'module' => 'System Administration'],
@@ -132,6 +137,7 @@ class RolePermissionSeeder extends Seeder
                     'recruitment.view', 'recruitment.create',
                     'incidents.view', 'incidents.create', 'incidents.edit',
                     'assessments.view', 'assessments.create', 'assessments.edit',
+                    'trainings.view', 'trainings.manage', 'trainings.report',
                 ]
             ],
             [
@@ -151,6 +157,7 @@ class RolePermissionSeeder extends Seeder
                     'recruitment.view', 'recruitment.create',
                     'incidents.view', 'incidents.create', 'incidents.edit',
                     'assessments.view', 'assessments.create', 'assessments.edit',
+                    'trainings.view', 'trainings.manage', 'trainings.report',
                 ]
             ],
             [
@@ -169,6 +176,7 @@ class RolePermissionSeeder extends Seeder
                     'employee.view', 'employee.edit',
                     'incidents.view', 'incidents.create', 'incidents.edit',
                     'assessments.view', 'assessments.create', 'assessments.edit',
+                    'trainings.view', 'trainings.manage', 'trainings.report',
                 ]
             ],
             [
@@ -204,6 +212,7 @@ class RolePermissionSeeder extends Seeder
                     'recruitment.view', 'recruitment.create',
                     'incidents.view', 'incidents.create', 'incidents.edit',
                     'assessments.view', 'assessments.create', 'assessments.edit',
+                    'trainings.view', 'trainings.manage', 'trainings.report',
                 ]
             ],
             [
@@ -226,6 +235,7 @@ class RolePermissionSeeder extends Seeder
                     'recruitment.view', 'recruitment.create',
                     'incidents.view', 'incidents.create', 'incidents.edit',
                     'assessments.view', 'assessments.create', 'assessments.edit',
+                    'trainings.view', 'trainings.manage', 'trainings.report',
                 ]
             ],
             [
