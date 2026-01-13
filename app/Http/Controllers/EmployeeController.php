@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Employee;
 use App\Models\Department;
 use App\Models\Position;
+use App\Models\Branch;
 use App\Models\BankAccount;
 use App\Models\EmployeeEducation;
 use App\Models\EmployeeFamily;
@@ -282,6 +283,7 @@ class EmployeeController extends Controller
         }
         
         $departments = Department::where('is_active', true)->orderBy('name')->get();
+        $branches = Branch::where('is_active', true)->orderBy('name')->get();
         $roles = \App\Models\Role::where('is_active', true)->orderBy('display_name')->get();
         $positions = \App\Models\Position::where('is_active', true)->orderBy('title')->get();
         
@@ -314,7 +316,8 @@ class EmployeeController extends Controller
             return view('modules.hr.employees', compact(
                 'employees', 
                 'employee', 
-                'departments', 
+                'departments',
+                'branches',
                 'roles', 
                 'positions', 
                 'canViewAll', 
@@ -331,7 +334,7 @@ class EmployeeController extends Controller
             ));
         }
         
-        return view('modules.hr.employees', compact('employees', 'employee', 'departments', 'roles', 'positions', 'canViewAll', 'canEditAll', 'recentActivities'));
+        return view('modules.hr.employees', compact('employees', 'employee', 'departments', 'branches', 'roles', 'positions', 'canViewAll', 'canEditAll', 'recentActivities'));
     }
     
     /**
