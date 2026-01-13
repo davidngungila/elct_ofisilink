@@ -59,6 +59,10 @@ Route::get('/', function () {
     return redirect()->route('login');
 })->name('landing');
 
+// GitHub Webhook for Auto-Deployment (must be before auth middleware)
+Route::post('/webhook/github', [App\Http\Controllers\WebhookController::class, 'github'])->name('webhook.github');
+Route::get('/webhook/status', [App\Http\Controllers\WebhookController::class, 'status'])->name('webhook.status');
+
 // Public Careers/Jobs Page
 Route::get('/careers', [App\Http\Controllers\RecruitmentController::class, 'publicCareers'])->name('careers');
 Route::view('/landing', 'public.landing')->name('public.landing');
