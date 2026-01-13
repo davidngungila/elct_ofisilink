@@ -15,28 +15,65 @@
                     <h4 class="mb-0"><i class="bx bx-edit me-2"></i>Submit Daily Report</h4>
                 </div>
                 <div class="card-body">
-                    <div class="alert alert-info mb-3">
-                        <i class="bx bx-info-circle me-2"></i>
-                        <strong>Daily Reporting Required:</strong> You must submit a report for each day of the training. 
-                        If you've already submitted a report for a date, submitting again will update that report.
-                    </div>
+                    @if(isset($permissionRequest) && $permissionRequest)
+                        <div class="alert alert-success mb-3">
+                            <i class="bx bx-check-circle me-2"></i>
+                            <strong>Permission-Based Reporting:</strong> You have an approved permission request for training. 
+                            You must report for each day requested in your permission.
+                            <br><small>Permission: {{ $permissionRequest->request_id }} | 
+                            Dates: {{ $permissionRequest->start_datetime->format('M d, Y') }} - {{ $permissionRequest->end_datetime->format('M d, Y') }}</small>
+                        </div>
+                    @else
+                        <div class="alert alert-info mb-3">
+                            <i class="bx bx-info-circle me-2"></i>
+                            <strong>Daily Reporting Required:</strong> You must submit a report for each day of the training. 
+                            If you've already submitted a report for a date, submitting again will update that report.
+                        </div>
+                    @endif
                     
                     <form action="{{ route('trainings.store-report', $training->id) }}" method="POST">
                         @csrf
                         
+                        @if(isset($permissionRequest) && $permissionRequest)
+                            <input type="hidden" name="permission_request_id" value="{{ $permissionRequest->id }}">
+                        @endif
+                        
                         <div class="mb-3">
                             <label class="form-label">Report Date <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control @error('report_date') is-invalid @enderror" 
-                                   name="report_date" value="{{ old('report_date', date('Y-m-d')) }}" required
-                                   @if($training->start_date) min="{{ $training->start_date->format('Y-m-d') }}" @endif
-                                   @if($training->end_date) max="{{ $training->end_date->format('Y-m-d') }}" @endif>
+                            @if(isset($permissionDates) && count($permissionDates) > 0)
+                                <select class="form-select @error('report_date') is-invalid @enderror" 
+                                       name="report_date" required>
+                                    <option value="">-- Select Date --</option>
+                                    @foreach($permissionDates as $date)
+                                        @php
+                                            $dateObj = \Carbon\Carbon::parse($date);
+                                            $isReported = in_array($date, $reportedDates ?? []);
+                                        @endphp
+                                        <option value="{{ $date }}" {{ old('report_date') == $date ? 'selected' : '' }}>
+                                            {{ $dateObj->format('M d, Y (l)') }}
+                                            @if($isReported) - [Already Reported] @endif
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <small class="text-muted">
+                                    <i class="bx bx-info-circle"></i> Select a date from your approved permission dates.
+                                </small>
+                            @else
+                                <input type="date" class="form-control @error('report_date') is-invalid @enderror" 
+                                       name="report_date" value="{{ old('report_date', date('Y-m-d')) }}" required
+                                       @if($training->start_date) min="{{ $training->start_date->format('Y-m-d') }}" @endif
+                                       @if($training->end_date) max="{{ $training->end_date->format('Y-m-d') }}" @endif>
+                            @endif
                             @error('report_date')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
-                            @if(in_array(old('report_date', date('Y-m-d')), $reportedDates ?? []))
-                                <small class="text-warning">
-                                    <i class="bx bx-info-circle"></i> You already have a report for this date. Submitting will update it.
-                                </small>
+                            @if(isset($permissionDates) && count($permissionDates) > 0)
+                                <div class="mt-2">
+                                    <small class="text-info">
+                                        <strong>Remaining dates to report:</strong> 
+                                        {{ count($permissionDates) - count(array_intersect($permissionDates, $reportedDates ?? [])) }} / {{ count($permissionDates) }}
+                                    </small>
+                                </div>
                             @endif
                         </div>
 

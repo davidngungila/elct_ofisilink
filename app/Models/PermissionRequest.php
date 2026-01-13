@@ -19,6 +19,8 @@ class PermissionRequest extends Model
         'end_datetime',
         'reason_type',
         'reason_description',
+        'training_id',
+        'is_for_training',
         'status',
         'hr_initial_reviewed',
         'hr_initial_reviewed_by',
@@ -98,5 +100,46 @@ class PermissionRequest extends Model
         ];
 
         return $badges[$this->status] ?? ['class' => 'secondary', 'text' => ucwords(str_replace('_', ' ', $this->status))];
+    }
+
+    public function training()
+    {
+        return $this->belongsTo(Training::class);
+    }
+
+    public function trainingReports()
+    {
+        return $this->hasMany(TrainingReport::class);
+    }
+
+    /**
+     * Get all dates between start and end datetime
+     */
+    public function getRequestedDatesAttribute()
+    {
+        if (!$this->start_datetime || !$this->end_datetime) {
+            return [];
+        }
+
+        $dates = [];
+        $current = $this->start_datetime->copy()->startOfDay();
+        $end = $this->end_datetime->copy()->startOfDay();
+
+        while ($current <= $end) {
+            $dates[] = $current->format('Y-m-d');
+            $current->addDay();
+        }
+
+        return $dates;
+    }
+
+    /**
+     * Check if permission is for training
+     */
+    public function isForTraining()
+    {
+        return $this->is_for_training || 
+               $this->training_id !== null ||
+               (stripos($this->reason_description ?? '', 'training') !== false);
     }
 }

@@ -7,6 +7,7 @@ use App\Models\TrainingReport;
 use App\Models\TrainingDocument;
 use App\Models\TrainingParticipant;
 use App\Models\TrainingEvaluation;
+use App\Models\PermissionRequest;
 use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
@@ -541,7 +542,7 @@ class TrainingController extends Controller
     /**
      * Show form for daily report
      */
-    public function showReportForm($id)
+    public function showReportForm($id, Request $request)
     {
         $training = Training::findOrFail($id);
         $user = Auth::user();
@@ -551,7 +552,39 @@ class TrainingController extends Controller
         
         $isParticipant = $training->participants->contains('user_id', $user->id);
         
-        if (!$canReportTrainings && !$isParticipant) {
+        // Check if user has approved permission request for this training
+        $permissionRequestId = $request->input('permission_request_id');
+        $permissionRequest = null;
+        $permissionDates = [];
+        
+        if ($permissionRequestId) {
+            $permissionRequest = \App\Models\PermissionRequest::where('id', $permissionRequestId)
+                ->where('user_id', $user->id)
+                ->where('status', 'approved')
+                ->first();
+            
+            if ($permissionRequest && $permissionRequest->isForTraining()) {
+                $permissionDates = $permissionRequest->requested_dates;
+            }
+        } else {
+            // Auto-detect permission request for this training
+            $permissionRequest = \App\Models\PermissionRequest::where('user_id', $user->id)
+                ->where(function($q) use ($training) {
+                    $q->where('training_id', $training->id)
+                      ->orWhere('is_for_training', true);
+                })
+                ->where('status', 'approved')
+                ->whereDate('start_datetime', '<=', now())
+                ->whereDate('end_datetime', '>=', now())
+                ->orderBy('created_at', 'desc')
+                ->first();
+            
+            if ($permissionRequest) {
+                $permissionDates = $permissionRequest->requested_dates;
+            }
+        }
+        
+        if (!$canReportTrainings && !$isParticipant && !$permissionRequest) {
             return redirect()->route('trainings.show', $id)
                 ->with('error', 'You do not have permission to report on this training.');
         }
@@ -565,7 +598,14 @@ class TrainingController extends Controller
             return $date->format('Y-m-d');
         })->toArray();
         
-        return view('modules.trainings.report', compact('training', 'reports', 'userReports', 'reportedDates'));
+        return view('modules.trainings.report', compact(
+            'training', 
+            'reports', 
+            'userReports', 
+            'reportedDates',
+            'permissionRequest',
+            'permissionDates'
+        ));
     }
 
     /**
@@ -591,8 +631,32 @@ class TrainingController extends Controller
             'activities_completed' => 'nullable|string',
             'challenges_faced' => 'nullable|string',
             'next_day_plan' => 'nullable|string',
+            'permission_request_id' => 'nullable|exists:permission_requests,id',
         ]);
 
+        // Verify permission request if provided
+        $permissionRequest = null;
+        if (!empty($validated['permission_request_id'])) {
+            $permissionRequest = PermissionRequest::where('id', $validated['permission_request_id'])
+                ->where('user_id', Auth::id())
+                ->where('status', 'approved')
+                ->first();
+            
+            if (!$permissionRequest || !$permissionRequest->isForTraining()) {
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', 'Invalid or unapproved permission request for training.');
+            }
+            
+            // Verify report date is within permission dates
+            $permissionDates = $permissionRequest->requested_dates;
+            if (!in_array($validated['report_date'], $permissionDates)) {
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', 'Report date must be within your approved permission dates.');
+            }
+        }
+        
         // Check if report already exists for this date by this user
         $existingReport = TrainingReport::where('training_id', $id)
             ->where('report_date', $validated['report_date'])
@@ -602,6 +666,7 @@ class TrainingController extends Controller
         // If report exists, update it instead of creating new one
         if ($existingReport) {
             $existingReport->update([
+                'permission_request_id' => $validated['permission_request_id'] ?? null,
                 'report_content' => $validated['report_content'],
                 'activities_completed' => $validated['activities_completed'] ?? null,
                 'challenges_faced' => $validated['challenges_faced'] ?? null,
@@ -615,6 +680,7 @@ class TrainingController extends Controller
         try {
             TrainingReport::create([
                 'training_id' => $id,
+                'permission_request_id' => $validated['permission_request_id'] ?? null,
                 'report_date' => $validated['report_date'],
                 'report_content' => $validated['report_content'],
                 'activities_completed' => $validated['activities_completed'] ?? null,

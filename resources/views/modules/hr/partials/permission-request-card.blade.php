@@ -36,6 +36,21 @@
             </div>
             @endif
             
+            @if($request->isForTraining() && $request->status == 'approved' && $isOwn)
+            <div class="alert alert-info py-2 mb-2">
+                <small>
+                    <i class="bx bx-info-circle me-1"></i>
+                    <strong>Training Permission:</strong> You must report for each day requested. 
+                    @if($request->training_id)
+                        <a href="{{ route('trainings.report', $request->training_id) }}?permission_request_id={{ $request->id }}" 
+                           class="alert-link fw-bold">Click to submit daily reports</a>
+                    @else
+                        <a href="{{ route('trainings.index') }}" class="alert-link fw-bold">Go to Training Management</a>
+                    @endif
+                </small>
+            </div>
+            @endif
+            
             <div class="d-flex gap-2 flex-wrap mt-3">
                 <a href="{{ route('permissions.show', $request->id) }}" class="btn btn-sm btn-outline-primary">
                     <i class="bx bx-show"></i> View Details
@@ -44,6 +59,15 @@
                 <a href="{{ route('permissions.pdf', $request->id) }}" class="btn btn-sm btn-outline-danger" target="_blank" title="Download PDF">
                     <i class="bx bx-download"></i> PDF
                 </a>
+                
+                @if($request->isForTraining() && $request->status == 'approved' && $isOwn)
+                    @if($request->training_id)
+                        <a href="{{ route('trainings.report', $request->training_id) }}?permission_request_id={{ $request->id }}" 
+                           class="btn btn-sm btn-outline-info" title="Report on Training">
+                            <i class="bx bx-clipboard"></i> Training Report
+                        </a>
+                    @endif
+                @endif
                 
                 @if(!$isOwn)
                     {{-- System Admin can perform all actions at any stage (except completed) --}}

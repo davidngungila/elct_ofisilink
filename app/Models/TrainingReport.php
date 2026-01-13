@@ -12,6 +12,7 @@ class TrainingReport extends Model
 
     protected $fillable = [
         'training_id',
+        'permission_request_id',
         'report_date',
         'report_content',
         'activities_completed',
@@ -32,6 +33,11 @@ class TrainingReport extends Model
     public function reporter(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function permissionRequest(): BelongsTo
+    {
+        return $this->belongsTo(PermissionRequest::class);
     }
 }
 

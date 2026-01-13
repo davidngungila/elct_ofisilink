@@ -306,6 +306,7 @@ class PermissionController extends Controller
             'end_datetime' => 'required|date|after:start_datetime',
             'reason_type' => 'required|in:official,personal,medical,emergency,other',
             'reason_description' => 'required|string|max:1000',
+            'training_id' => 'nullable|exists:trainings,id',
         ]);
         
         $user = Auth::user();
@@ -324,6 +325,11 @@ class PermissionController extends Controller
         
         $requestId = 'PR' . $today . '-' . str_pad($sequence, 3, '0', STR_PAD_LEFT);
         
+        // Check if this is for training
+        $isForTraining = $request->has('training_id') && $request->training_id ||
+                        stripos($validated['reason_description'], 'training') !== false ||
+                        $validated['reason_type'] === 'official' && stripos($validated['reason_description'], 'training') !== false;
+        
         $permissionRequest = PermissionRequest::create([
             'request_id' => $requestId,
             'user_id' => $user->id,
@@ -333,6 +339,8 @@ class PermissionController extends Controller
             'end_datetime' => $validated['end_datetime'],
             'reason_type' => $validated['reason_type'],
             'reason_description' => $validated['reason_description'],
+            'training_id' => $validated['training_id'] ?? null,
+            'is_for_training' => $isForTraining,
             'status' => 'pending_hr',
         ]);
 

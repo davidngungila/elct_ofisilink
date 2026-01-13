@@ -676,7 +676,7 @@
                     
                     <div class="mb-3">
                         <label class="form-label">Reason Type *</label>
-                        <select name="reason_type" class="form-select" required>
+                        <select name="reason_type" id="reason_type" class="form-select" required>
                             <option value="">-- Select --</option>
                             <option value="official">Official</option>
                             <option value="personal">Personal</option>
@@ -686,10 +686,36 @@
                         </select>
                     </div>
                     
+                    <div class="mb-3" id="training_selection" style="display: none;">
+                        <label class="form-label">Select Training (if for training)</label>
+                        <select name="training_id" id="training_id" class="form-select">
+                            <option value="">-- Select Training (Optional) --</option>
+                            @php
+                                $trainings = \App\Models\Training::where('status', 'published')
+                                    ->where(function($q) {
+                                        $q->whereNull('end_date')
+                                          ->orWhere('end_date', '>=', now());
+                                    })
+                                    ->orderBy('start_date', 'desc')
+                                    ->get();
+                            @endphp
+                            @foreach($trainings as $training)
+                                <option value="{{ $training->id }}">
+                                    {{ $training->topic }} 
+                                    @if($training->start_date)
+                                        ({{ $training->start_date->format('M d, Y') }})
+                                    @endif
+                                </option>
+                            @endforeach
+                        </select>
+                        <small class="text-muted">If this permission is for a specific training, select it here</small>
+                    </div>
+                    
                     <div class="mb-3">
                         <label class="form-label">Reason Description *</label>
-                        <textarea name="reason_description" class="form-control" rows="4" required 
+                        <textarea name="reason_description" id="reason_description" class="form-control" rows="4" required 
                                   placeholder="Provide a detailed reason for your permission request..."></textarea>
+                        <small class="text-muted">If this is for training, mention "training" in your description</small>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -2158,5 +2184,29 @@ $(document).ready(function() {
     
     // Close analytics initialization
 }); // End $(document).ready
+
+    // Show/hide training selection based on reason type or description
+    $(document).ready(function() {
+        const reasonType = $('#reason_type');
+        const reasonDescription = $('#reason_description');
+        const trainingSelection = $('#training_selection');
+        
+        function toggleTrainingSelection() {
+            const isOfficial = reasonType.val() === 'official';
+            const hasTrainingKeyword = reasonDescription.val().toLowerCase().includes('training');
+            
+            if (isOfficial || hasTrainingKeyword) {
+                trainingSelection.show();
+            } else {
+                trainingSelection.hide();
+            }
+        }
+        
+        reasonType.on('change', toggleTrainingSelection);
+        reasonDescription.on('input', toggleTrainingSelection);
+        
+        // Initial check
+        toggleTrainingSelection();
+    });
 </script>
 @endpush
