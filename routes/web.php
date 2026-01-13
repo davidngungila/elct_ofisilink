@@ -253,6 +253,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{notice}/edit', [NoticeController::class, 'edit'])->name('edit');
         Route::put('/{notice}', [NoticeController::class, 'update'])->name('update');
         Route::delete('/{notice}', [NoticeController::class, 'destroy'])->name('destroy');
+        Route::post('/{notice}/acknowledge', [NoticeController::class, 'acknowledge'])->name('acknowledge');
+        Route::get('/{notice}/acknowledgment-stats', [NoticeController::class, 'acknowledgmentStats'])->name('acknowledgment-stats');
     });
 
     // Account Settings

@@ -39,9 +39,11 @@
                     <h5 class="card-title mb-0">
                         <i class="bx bx-bullhorn me-2"></i>All notices
                     </h5>
+                    @if(isset($canManage) && $canManage)
                     <a href="{{ route('notices.create') }}" class="btn btn-primary">
                         <i class="bx bx-plus me-1"></i>Create New notice
                     </a>
+                    @endif
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
@@ -103,12 +105,14 @@
                                             <a href="{{ route('notices.show', $ad->id) }}" class="btn btn-sm btn-outline-info" title="View">
                                                 <i class="bx bx-show"></i>
                                             </a>
+                                            @if(isset($canManage) && $canManage)
                                             <a href="{{ route('notices.edit', $ad->id) }}" class="btn btn-sm btn-outline-primary" title="Edit">
                                                 <i class="bx bx-edit"></i>
                                             </a>
                                             <button class="btn btn-sm btn-outline-danger" onclick="deletenotice({{ $ad->id }})" title="Delete">
                                                 <i class="bx bx-trash"></i>
                                             </button>
+                                            @endif
                                         </div>
                                     </td>
                                 </tr>
