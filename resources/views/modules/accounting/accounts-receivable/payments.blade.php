@@ -223,14 +223,19 @@
                     </div>
                     <div class="col-md-3">
                         <label class="form-label small text-muted fw-semibold">Invoice</label>
-                        <select class="form-select form-select-sm" id="filterInvoice">
-                            <option value="">All Invoices</option>
-                            @foreach($invoices as $invoice)
-                            <option value="{{ $invoice->id }}" {{ request('invoice_id') == $invoice->id ? 'selected' : '' }}>
-                                {{ $invoice->invoice_no }} - {{ $invoice->customer->name ?? 'N/A' }}
-                            </option>
-                            @endforeach
-                        </select>
+                        <div class="input-group input-group-sm">
+                            <select class="form-select form-select-sm" id="filterInvoice">
+                                <option value="">All Invoices</option>
+                                @foreach($invoices as $invoice)
+                                <option value="{{ $invoice->id }}" {{ request('invoice_id') == $invoice->id ? 'selected' : '' }}>
+                                    {{ $invoice->invoice_no }} - {{ $invoice->customer->name ?? 'N/A' }}
+                                </option>
+                                @endforeach
+                            </select>
+                            <button class="btn btn-outline-primary" type="button" id="btnViewInvoice" title="View Invoice" onclick="viewSelectedInvoice()" style="display: none;">
+                                <i class="bx bx-show"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="col-md-3">
                         <label class="form-label small text-muted fw-semibold">Payment Method</label>
@@ -359,14 +364,19 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label">Invoice <span class="text-danger">*</span></label>
-                            <select class="form-select" id="paymentInvoice" name="invoice_id" required>
-                                <option value="">Select Invoice</option>
-                                @foreach($invoices as $invoice)
-                                <option value="{{ $invoice->id }}" data-balance="{{ $invoice->balance }}">
-                                    {{ $invoice->invoice_no }} - {{ $invoice->customer->name ?? 'N/A' }} (Balance: TZS {{ number_format($invoice->balance, 2) }})
-                                </option>
-                                @endforeach
-                            </select>
+                            <div class="input-group">
+                                <select class="form-select" id="paymentInvoice" name="invoice_id" required>
+                                    <option value="">Select Invoice</option>
+                                    @foreach($invoices as $invoice)
+                                    <option value="{{ $invoice->id }}" data-balance="{{ $invoice->balance }}">
+                                        {{ $invoice->invoice_no }} - {{ $invoice->customer->name ?? 'N/A' }} (Balance: TZS {{ number_format($invoice->balance, 2) }})
+                                    </option>
+                                    @endforeach
+                                </select>
+                                <button class="btn btn-outline-primary" type="button" id="btnViewInvoiceModal" title="View Invoice" onclick="viewSelectedInvoiceFromModal()" style="display: none;">
+                                    <i class="bx bx-show"></i> View
+                                </button>
+                            </div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Payment Date <span class="text-danger">*</span></label>
@@ -406,7 +416,31 @@
                             <textarea class="form-control" id="paymentNotes" name="notes" rows="2"></textarea>
                         </div>
                     </div>
+                    
                 </div>
+                
+                <!-- Invoice Preview Section -->
+                <div class="row g-3 mt-2">
+                    <div class="col-12" id="invoicePreviewSection" style="display: none;">
+                        <div class="card border-primary">
+                            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center" style="cursor: pointer;" onclick="toggleInvoicePreview()">
+                                <h6 class="mb-0">
+                                    <i class="bx bx-file me-2"></i>Invoice Preview
+                                </h6>
+                                <i class="bx bx-chevron-up" id="invoicePreviewToggle"></i>
+                            </div>
+                            <div class="card-body" id="invoicePreviewContent">
+                                <div class="text-center py-3">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <p class="text-muted mt-2 mb-0">Loading invoice details...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-success">Record Payment</button>
@@ -947,6 +981,14 @@ const token = '{{ csrf_token() }}';
                     // Reset form
                     document.getElementById('paymentForm').reset();
                     
+                    // Reset invoice preview section
+                    const previewSection = document.getElementById('invoicePreviewSection');
+                    if (previewSection) previewSection.style.display = 'none';
+                    
+                    // Reset view invoice button
+                    const btnView = document.getElementById('btnViewInvoiceModal');
+                    if (btnView) btnView.style.display = 'none';
+                    
                     setTimeout(() => {
                         page = 1;
                         load();
@@ -1014,7 +1056,37 @@ const token = '{{ csrf_token() }}';
     }
     
     if(document.getElementById('paymentInvoice')) {
-        document.getElementById('paymentInvoice').addEventListener('change', updatePaymentAmountFromInvoice);
+        document.getElementById('paymentInvoice').addEventListener('change', function() {
+            updatePaymentAmountFromInvoice();
+            // Show/hide view invoice button in modal
+            const btnView = document.getElementById('btnViewInvoiceModal');
+            if (btnView) {
+                btnView.style.display = this.value ? 'block' : 'none';
+            }
+            // Load invoice preview
+            if (this.value) {
+                loadInvoicePreview(this.value);
+            } else {
+                const previewSection = document.getElementById('invoicePreviewSection');
+                if (previewSection) previewSection.style.display = 'none';
+            }
+        });
+    }
+    
+    // Show/hide view invoice button in filter
+    if(document.getElementById('filterInvoice')) {
+        document.getElementById('filterInvoice').addEventListener('change', function() {
+            const btnView = document.getElementById('btnViewInvoice');
+            if (btnView) {
+                btnView.style.display = this.value ? 'block' : 'none';
+            }
+        });
+        // Check initial state
+        const filterInvoice = document.getElementById('filterInvoice');
+        if (filterInvoice && filterInvoice.value) {
+            const btnView = document.getElementById('btnViewInvoice');
+            if (btnView) btnView.style.display = 'block';
+        }
     }
     
     let t = null;
@@ -1087,6 +1159,15 @@ function openPaymentModal() {
         keyboard: false
     });
     document.getElementById('paymentForm').reset();
+    
+    // Reset invoice preview section
+    const previewSection = document.getElementById('invoicePreviewSection');
+    if (previewSection) previewSection.style.display = 'none';
+    
+    // Reset view invoice button
+    const btnView = document.getElementById('btnViewInvoiceModal');
+    if (btnView) btnView.style.display = 'none';
+    
     modal.show();
 }
 
@@ -1191,6 +1272,195 @@ async function viewPayment(id) {
 
 function exportPaymentPdf(id) {
     window.open(`{{ route('modules.accounting.ar.payments.pdf', ':id') }}`.replace(':id', id), '_blank');
+}
+
+function viewSelectedInvoice() {
+    const invoiceId = document.getElementById('filterInvoice')?.value;
+    if (invoiceId) {
+        const url = `{{ route('modules.accounting.ar.invoices.show', ':id') }}`.replace(':id', invoiceId);
+        window.open(url, '_blank');
+    }
+}
+
+function viewSelectedInvoiceFromModal() {
+    const invoiceId = document.getElementById('paymentInvoice')?.value;
+    if (invoiceId) {
+        const url = `{{ route('modules.accounting.ar.invoices.show', ':id') }}`.replace(':id', invoiceId);
+        window.open(url, '_blank');
+    }
+}
+
+async function loadInvoicePreview(invoiceId) {
+    const previewSection = document.getElementById('invoicePreviewSection');
+    const previewContent = document.getElementById('invoicePreviewContent');
+    
+    if (!previewSection || !previewContent) return;
+    
+    // Show preview section
+    previewSection.style.display = 'block';
+    
+    // Show loading
+    previewContent.innerHTML = `
+        <div class="text-center py-3">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="text-muted mt-2 mb-0">Loading invoice details...</p>
+        </div>
+    `;
+    
+    try {
+        const response = await fetch(`{{ route('modules.accounting.ar.invoices.show', ':id') }}`.replace(':id', invoiceId), {
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': token
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success && data.invoice) {
+            const invoice = data.invoice;
+            const customer = invoice.customer || {};
+            
+            // Build invoice items table
+            let itemsHtml = '';
+            if (invoice.items && invoice.items.length > 0) {
+                itemsHtml = invoice.items.map(item => {
+                    const lineTotal = item.line_total || ((item.quantity || 0) * (item.unit_price || 0) * (1 + ((item.tax_rate || 0) / 100)));
+                    return `
+                        <tr>
+                            <td>${escapeHtml(item.description || '-')}</td>
+                            <td class="text-end">${(item.quantity || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                            <td class="text-end">TZS ${(item.unit_price || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                            <td class="text-end">${(item.tax_rate || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}%</td>
+                            <td class="text-end">TZS ${lineTotal.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                itemsHtml = '<tr><td colspan="5" class="text-center text-muted">No items found</td></tr>';
+            }
+            
+            // Format dates
+            const invoiceDate = invoice.invoice_date ? new Date(invoice.invoice_date).toLocaleDateString('en-US', {year: 'numeric', month: 'long', day: 'numeric'}) : 'N/A';
+            const dueDate = invoice.due_date ? new Date(invoice.due_date).toLocaleDateString('en-US', {year: 'numeric', month: 'long', day: 'numeric'}) : 'N/A';
+            
+            // Status badge
+            const statusBadges = {
+                'Draft': 'bg-secondary',
+                'Pending for Approval': 'bg-warning',
+                'Approved': 'bg-info',
+                'Sent': 'bg-primary',
+                'Partially Paid': 'bg-warning',
+                'Paid': 'bg-success',
+                'Cancelled': 'bg-danger',
+                'Overdue': 'bg-danger'
+            };
+            const statusClass = statusBadges[invoice.status] || 'bg-secondary';
+            
+            previewContent.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <h6 class="text-muted mb-2">Invoice Information</h6>
+                        <p class="mb-1"><strong>Invoice No:</strong> <code class="text-primary">${escapeHtml(invoice.invoice_no || 'N/A')}</code></p>
+                        <p class="mb-1"><strong>Invoice Date:</strong> ${invoiceDate}</p>
+                        <p class="mb-1"><strong>Due Date:</strong> ${dueDate}</p>
+                        <p class="mb-1"><strong>Status:</strong> <span class="badge ${statusClass}">${escapeHtml(invoice.status || 'N/A')}</span></p>
+                        ${invoice.reference_no ? `<p class="mb-1"><strong>Reference:</strong> ${escapeHtml(invoice.reference_no)}</p>` : ''}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <h6 class="text-muted mb-2">Customer Information</h6>
+                        <p class="mb-1"><strong>Name:</strong> ${escapeHtml(customer.name || 'N/A')}</p>
+                        ${customer.phone ? `<p class="mb-1"><strong>Phone:</strong> ${escapeHtml(customer.phone)}</p>` : ''}
+                        ${customer.email ? `<p class="mb-1"><strong>Email:</strong> ${escapeHtml(customer.email)}</p>` : ''}
+                        ${customer.address ? `<p class="mb-1"><strong>Address:</strong> ${escapeHtml(customer.address)}</p>` : ''}
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <h6 class="text-muted mb-2">Invoice Items</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Description</th>
+                                    <th class="text-end">Qty</th>
+                                    <th class="text-end">Unit Price</th>
+                                    <th class="text-end">Tax %</th>
+                                    <th class="text-end">Line Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${itemsHtml}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6"></div>
+                    <div class="col-md-6">
+                        <table class="table table-sm table-bordered">
+                            <tbody>
+                                <tr>
+                                    <td><strong>Subtotal:</strong></td>
+                                    <td class="text-end">TZS ${(invoice.subtotal || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                                </tr>
+                                ${invoice.discount_amount > 0 ? `
+                                <tr>
+                                    <td><strong>Discount:</strong></td>
+                                    <td class="text-end text-danger">- TZS ${(invoice.discount_amount || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                                </tr>
+                                ` : ''}
+                                ${invoice.tax_amount > 0 ? `
+                                <tr>
+                                    <td><strong>Tax:</strong></td>
+                                    <td class="text-end">TZS ${(invoice.tax_amount || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                                </tr>
+                                ` : ''}
+                                <tr class="table-primary">
+                                    <td><strong>Total Amount:</strong></td>
+                                    <td class="text-end"><strong>TZS ${(invoice.total_amount || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Paid Amount:</strong></td>
+                                    <td class="text-end text-success">TZS ${(invoice.paid_amount || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+                                </tr>
+                                <tr class="table-warning">
+                                    <td><strong>Balance:</strong></td>
+                                    <td class="text-end"><strong class="text-danger">TZS ${(invoice.balance || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        } else {
+            previewContent.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bx bx-error-circle me-2"></i>Failed to load invoice details: ${escapeHtml(data.message || 'Unknown error')}
+                </div>
+            `;
+        }
+    } catch (error) {
+        previewContent.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bx bx-error-circle me-2"></i>Error loading invoice: ${escapeHtml(error.message || 'Network error')}
+            </div>
+        `;
+    }
+}
+
+function toggleInvoicePreview() {
+    const previewContent = document.getElementById('invoicePreviewContent');
+    const toggleIcon = document.getElementById('invoicePreviewToggle');
+    
+    if (!previewContent || !toggleIcon) return;
+    
+    const isCollapsed = previewContent.style.display === 'none';
+    previewContent.style.display = isCollapsed ? 'block' : 'none';
+    toggleIcon.className = isCollapsed ? 'bx bx-chevron-up' : 'bx bx-chevron-down';
 }
 </script>
 @endpush

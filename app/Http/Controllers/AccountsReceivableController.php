@@ -694,9 +694,9 @@ class AccountsReceivableController extends Controller
         }
 
         $payments = $query->orderBy('payment_date', 'desc')->paginate(20);
-        // Get invoices that are not fully paid (have balance > 0) and are approved/sent
+        // Get invoices that are not fully paid (have balance > 0) - exclude Cancelled and Paid
         $invoices = Invoice::where('balance', '>', 0)
-            ->whereIn('status', ['Sent', 'Partially Paid', 'Overdue', 'Approved'])
+            ->whereNotIn('status', ['Cancelled', 'Paid'])
             ->with('customer')
             ->orderBy('invoice_date', 'desc')
             ->get();
