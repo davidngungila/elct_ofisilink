@@ -615,8 +615,8 @@
                         <div class="d-flex justify-content-between align-items-start">
                             <div class="flex-grow-1">
                                 <h6 class="mb-1">{{ $log->description ?? 'Activity' }}</h6>
-                                @if($log->causer)
-                                <small class="text-muted">by {{ $log->causer->name }}</small>
+                                @if($log->user)
+                                <small class="text-muted">by {{ $log->user->name }}</small>
                                 @endif
                             </div>
                             <small class="text-muted">{{ $log->created_at->format('M d, Y H:i') }}</small>

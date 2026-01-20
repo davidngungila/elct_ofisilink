@@ -1665,9 +1665,15 @@ class AccountsReceivableController extends Controller
                 'customer',
                 'items.account',
                 'payments.bankAccount',
-                'payments.createdBy',
-                'hodApprover',
-                'ceoApprover',
+                'payments.creator' => function($query) {
+                    $query->select('id', 'name', 'email');
+                },
+                'hodApprover' => function($query) {
+                    $query->select('id', 'name', 'email');
+                },
+                'ceoApprover' => function($query) {
+                    $query->select('id', 'name', 'email');
+                },
                 'creator' => function($query) {
                     $query->select('id', 'name', 'email');
                 },
@@ -1678,12 +1684,17 @@ class AccountsReceivableController extends Controller
 
             // Get activity logs if available
             $activityLogs = [];
-            if (class_exists(\App\Models\ActivityLog::class)) {
-                $activityLogs = \App\Models\ActivityLog::where('subject_type', Invoice::class)
-                    ->where('subject_id', $invoice->id)
-                    ->with('causer')
-                    ->orderBy('created_at', 'desc')
-                    ->get();
+            try {
+                if (class_exists(\App\Models\ActivityLog::class)) {
+                    $activityLogs = \App\Models\ActivityLog::where('model_type', Invoice::class)
+                        ->where('model_id', $invoice->id)
+                        ->with('user')
+                        ->orderBy('created_at', 'desc')
+                        ->get();
+                }
+            } catch (\Exception $e) {
+                // Log error but don't fail the page if activity logs can't be loaded
+                Log::warning('Failed to load activity logs for invoice: ' . $e->getMessage());
             }
 
             // Calculate payment statistics
