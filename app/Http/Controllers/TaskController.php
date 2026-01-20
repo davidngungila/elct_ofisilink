@@ -52,13 +52,33 @@ class TaskController extends Controller
         
         return $isManager;
     }
+
+    /**
+     * Check if user can create tasks (only HOD, CEO, or HR Officer)
+     */
+    private function canCreateTask($user = null)
+    {
+        if (!$user) {
+            $user = Auth::user();
+        }
+        
+        if (!$user) {
+            return false;
+        }
+        
+        $userRoleNames = method_exists($user, 'roles') ? $user->roles()->pluck('name')->toArray() : [];
+        
+        // Only HOD, CEO, and HR Officer can create tasks
+        $allowedRoles = ['HOD', 'CEO', 'HR Officer', 'System Admin'];
+        return count(array_intersect($userRoleNames, $allowedRoles)) > 0;
+    }
     public function create()
     {
         $user = Auth::user();
-        $isManager = $this->isManager($user);
+        $canCreateTask = $this->canCreateTask($user);
         
-        if (!$isManager) {
-            abort(403, 'Only managers (General Manager, HOD, Branch Manager, System Admin) can create tasks');
+        if (!$canCreateTask) {
+            abort(403, 'Only HOD, CEO, or HR Officer can create tasks and assign them to staff');
         }
         
         $users = User::orderBy('name')->get(['id','name']);
@@ -793,10 +813,13 @@ class TaskController extends Controller
             ->orderBy('name')
             ->get();
 
+        $canCreateTask = $this->canCreateTask($user);
+
         return view('modules.tasks.index', [
             'mainTasks' => $mainTasks,
             'users' => $users,
             'isManager' => $isManager,
+            'canCreateTask' => $canCreateTask,
             'dashboardStats' => $dashboardStats,
             'categories' => $categories,
             'pendingReports' => $pendingReports,
@@ -833,7 +856,8 @@ class TaskController extends Controller
             return DB::transaction(function () use ($request, $user, $isManager, $action) {
             switch ($action) {
                 case 'task_create_main':
-                    if (!$isManager) abort(403);
+                    $canCreateTask = $this->canCreateTask($user);
+                    if (!$canCreateTask) abort(403, 'Only HOD, CEO, or HR Officer can create tasks');
                     
                     $tags = $request->input('tags');
                     $tagsArray = $tags ? array_map('trim', explode(',', $tags)) : [];

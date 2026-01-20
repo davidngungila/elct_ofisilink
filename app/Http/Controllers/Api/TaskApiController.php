@@ -129,10 +129,11 @@ class TaskApiController extends Controller
     {
         $user = Auth::user();
         
-        if (!$user->hasAnyRole(['System Admin', 'CEO', 'HOD', 'Manager', 'Director'])) {
+        // Only HOD, CEO, or HR Officer can create tasks
+        if (!$user->hasAnyRole(['System Admin', 'CEO', 'HOD', 'HR Officer'])) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized'
+                'message' => 'Unauthorized: Only HOD, CEO, or HR Officer can create tasks'
             ], 403);
         }
 

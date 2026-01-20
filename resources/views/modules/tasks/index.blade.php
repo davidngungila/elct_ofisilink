@@ -42,7 +42,7 @@
                             </p>
                         </div>
                         <div class="d-flex gap-2 flex-wrap align-items-center">
-                            @if($isManager)
+                            @if($canCreateTask ?? false)
                                 <a href="{{ route('modules.tasks.create') }}" class="btn btn-light btn-lg shadow-sm">
                                     <i class="bx bx-plus me-2"></i>Create Task
                                 </a>
@@ -211,7 +211,7 @@
                 </div>
                 <div class="card-body">
                     <div class="row g-3">
-                        @if($isManager)
+                        @if($canCreateTask ?? false)
                         <div class="col-lg-3 col-md-6">
                             <a href="{{ route('modules.tasks.create') }}" class="card border-primary h-100 text-decoration-none hover-lift">
                                 <div class="card-body text-center">
@@ -411,7 +411,7 @@
                         @else
                             <div class="text-center py-5">
                                 <i class="bx bx-task fs-1 text-muted mb-3"></i>
-                                <p class="text-muted">No tasks found. @if($isManager)<a href="{{ route('modules.tasks.create') }}">Create your first task</a>@endif</p>
+                                <p class="text-muted">No tasks found. @if($canCreateTask ?? false)<a href="{{ route('modules.tasks.create') }}">Create your first task</a>@endif</p>
                             </div>
                         @endif
                     </div>

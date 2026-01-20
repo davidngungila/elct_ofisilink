@@ -13,7 +13,7 @@
                 <p class="text-muted">Enterprise-grade task management with advanced analytics, progress tracking, and comprehensive reporting</p>
             </div>
             <div class="btn-group" role="group">
-                @if($isManager)
+                @if($canCreateTask ?? false)
                     <button class="btn btn-primary" id="create-task-btn">
                         <i class="bx bx-plus"></i> Create Task
                     </button>
@@ -304,7 +304,7 @@
                 <div class="col-12">
                     <div class="alert alert-info text-center">
                         <i class="bx bx-info-circle"></i> No tasks found. 
-                        @if($isManager)
+                        @if($canCreateTask ?? false)
                         <a href="#" id="create-task-btn-link" class="alert-link">Create your first task</a>
                         @endif
                     </div>
