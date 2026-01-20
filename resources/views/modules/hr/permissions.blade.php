@@ -13,7 +13,6 @@
             <p class="text-muted mb-0">Manage staff permission requests and approvals</p>
         </div>
         <div class="d-flex gap-2">
-            <a href="{{ route('trainings.index') }}" class="btn btn-info shadow-sm">
                 <i class="bx bx-book-open me-1"></i>Training Management
             </a>
             <button class="btn btn-primary shadow-sm" id="new-permission-btn">

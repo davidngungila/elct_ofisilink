@@ -17,6 +17,7 @@ use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\ImprestController;
+use App\Http\Controllers\RefundController;
 use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\AccountingController;
 use App\Http\Controllers\AccountsPayableController;
@@ -27,7 +28,6 @@ use App\Http\Controllers\CashBankController;
 use App\Http\Controllers\TaxController;
 use App\Http\Controllers\FixedAssetController;
 use App\Http\Controllers\MeetingController;
-use App\Http\Controllers\TrainingController;
 use App\Http\Controllers\NoticeController;
 
 // Helper function to get subdomain
@@ -174,6 +174,19 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{id}/pdf', [ImprestController::class, 'generatePDF'])->name('pdf')->where('id', '[0-9]+');
         Route::get('/{id}', [ImprestController::class, 'show'])->name('show')->where('id', '[0-9]+');
     });
+
+    // Refund Requests Routes
+    Route::prefix('refunds')->name('refunds.')->group(function () {
+        Route::get('/', [RefundController::class, 'index'])->name('index');
+        Route::get('/create', [RefundController::class, 'create'])->name('create');
+        Route::post('/', [RefundController::class, 'store'])->name('store');
+        Route::get('/{id}', [RefundController::class, 'show'])->name('show')->where('id', '[0-9]+');
+        Route::post('/{id}/hod-approve', [RefundController::class, 'hodApprove'])->name('hod-approve')->where('id', '[0-9]+');
+        Route::post('/{id}/accountant-verify', [RefundController::class, 'accountantVerify'])->name('accountant-verify')->where('id', '[0-9]+');
+        Route::post('/{id}/ceo-approve', [RefundController::class, 'ceoApprove'])->name('ceo-approve')->where('id', '[0-9]+');
+        Route::post('/{id}/mark-paid', [RefundController::class, 'markAsPaid'])->name('mark-paid')->where('id', '[0-9]+');
+        Route::get('/{id}/attachment/{attachmentId}/download', [RefundController::class, 'downloadAttachment'])->name('attachment.download')->where('id', '[0-9]+')->where('attachmentId', '[0-9]+');
+    });
     Route::view('/modules/finance/ledger', 'modules.finance.ledger')->name('modules.finance.ledger');
     Route::post('/modules/finance/ledger/data', [\App\Http\Controllers\FinanceLedgerController::class, 'data'])->name('modules.finance.ledger.data');
     Route::get('/modules/finance/ledger/pdf', [\App\Http\Controllers\FinanceLedgerController::class, 'exportPdf'])->name('modules.finance.ledger.pdf');
@@ -221,29 +234,6 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/{meeting}/reject', [MeetingController::class, 'reject'])->name('reject');
     });
 
-    // Training Management Routes
-    Route::prefix('trainings')->name('trainings.')->group(function () {
-        Route::get('/', [TrainingController::class, 'index'])->name('index');
-        Route::get('/my-reports', [TrainingController::class, 'myReports'])->name('my-reports');
-        Route::get('/search', [TrainingController::class, 'search'])->name('search');
-        Route::get('/analytics', [TrainingController::class, 'analytics'])->name('analytics');
-        Route::get('/calendar', [TrainingController::class, 'calendar'])->name('calendar');
-        Route::get('/export-pdf', [TrainingController::class, 'exportPdf'])->name('export-pdf');
-        Route::get('/create', [TrainingController::class, 'create'])->name('create');
-        Route::post('/', [TrainingController::class, 'store'])->name('store');
-        Route::get('/{training}', [TrainingController::class, 'show'])->name('show');
-        Route::get('/{training}/edit', [TrainingController::class, 'edit'])->name('edit');
-        Route::put('/{training}', [TrainingController::class, 'update'])->name('update');
-        Route::delete('/{training}', [TrainingController::class, 'destroy'])->name('destroy');
-        Route::get('/{training}/submit', [TrainingController::class, 'showSubmitForm'])->name('submit');
-        Route::post('/{training}/submit', [TrainingController::class, 'submit'])->name('submit.store');
-        Route::get('/{training}/report', [TrainingController::class, 'showReportForm'])->name('report');
-        Route::post('/{training}/report', [TrainingController::class, 'storeReport'])->name('store-report');
-        Route::get('/{training}/evaluation', [TrainingController::class, 'showEvaluation'])->name('evaluation');
-        Route::post('/{training}/evaluation', [TrainingController::class, 'storeEvaluation'])->name('evaluation.store');
-        Route::post('/{training}/send-notifications', [TrainingController::class, 'sendNotifications'])->name('send-notifications');
-        Route::delete('/{training}/documents/{document}', [TrainingController::class, 'deleteDocument'])->name('delete-document');
-    });
 
     // Notices/Announcements Routes
     Route::prefix('notices')->name('notices.')->group(function () {

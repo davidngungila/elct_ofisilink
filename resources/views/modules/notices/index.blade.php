@@ -1,14 +1,14 @@
 @extends('layouts.app')
 
-@section('title', 'notices / Announcements')
+@section('title', 'Notices')
 
 @section('breadcrumb')
 <div class="row">
     <div class="col-12">
         <div class="card">
             <div class="card-body">
-                <h4 class="card-title mb-0">notices / Announcements</h4>
-                <p class="text-muted">Manage system-wide announcements and notices</p>
+                <h4 class="card-title mb-0">Notices</h4>
+                <p class="text-muted">Manage system-wide notices</p>
             </div>
         </div>
     </div>

@@ -587,7 +587,7 @@ class AccountsReceivableController extends Controller
                         [
                             'name' => 'Sales Revenue',
                             'type' => 'Income',
-                            'category' => 'Operating Revenue',
+                            'category' => 'Operating Income',
                             'is_active' => true,
                         ]
                     )->id;
