@@ -1272,40 +1272,44 @@ class TaskController extends Controller
                 case 'task_delete_activity':
                     if (!$isManager) abort(403);
                     
-                    $activity = TaskActivity::with('mainTask')->findOrFail($request->integer('activity_id'));
+                    $activity = TaskActivity::with(['mainTask', 'assignedUsers'])->findOrFail($request->integer('activity_id'));
                     $activityName = $activity->name;
-                    $taskName = $activity->mainTask->name ?? 'Unknown Task';
+                    $mainTask = $activity->mainTask;
+                    $taskName = $mainTask->name ?? 'Unknown Task';
+                    $mainTaskId = $mainTask->id ?? null;
+                    $teamLeaderId = $mainTask->team_leader_id ?? null;
+                    
+                    // Get assigned user IDs before deletion
+                    $assignedUserIds = $activity->assignedUsers->pluck('id')->toArray();
+                    $activityId = $activity->id;
+                    
+                    // Delete the activity
                     $activity->delete();
 
                     // Send SMS and Email notifications to team leader and assigned users
                     try {
-                        $mainTask = $activity->mainTask;
-                        
                         // Notify team leader
-                        if ($mainTask && $mainTask->team_leader_id) {
+                        if ($mainTaskId && $teamLeaderId) {
                             $message = "Activity Deleted: Activity '{$activityName}' has been removed from task '{$taskName}'. Please review the updated task structure.";
                             $this->notificationService->notify(
-                                $mainTask->team_leader_id,
+                                $teamLeaderId,
                                 $message,
-                                route('modules.tasks.show', $mainTask->id),
+                                route('modules.tasks.show', $mainTaskId),
                                 'Activity Deleted - ' . $activityName
                             );
                         }
 
-                        // Get assigned users before deletion
-                        $assignedUserIds = $activity->assignedUsers->pluck('id')->toArray();
-                        
-                        // Notify assigned users (if they can still be found)
+                        // Notify assigned users
                         if (!empty($assignedUserIds)) {
                             foreach ($assignedUserIds as $userId) {
-                                if ($userId != ($mainTask->team_leader_id ?? null)) {
+                                if ($userId != $teamLeaderId) {
                                     $assignedUser = User::find($userId);
                                     if ($assignedUser) {
                                         $message = "Activity Removed: Activity '{$activityName}' that you were assigned to in task '{$taskName}' has been removed. Please check with your team leader for updates.";
                                         $this->notificationService->notify(
                                             $userId,
                                             $message,
-                                            route('modules.tasks.show', $mainTask->id ?? 0),
+                                            $mainTaskId ? route('modules.tasks.show', $mainTaskId) : route('modules.tasks.index'),
                                             'Activity Removed - ' . $activityName
                                         );
                                     }
@@ -1313,12 +1317,11 @@ class TaskController extends Controller
                             }
                         }
                             
-                            \Log::info('Activity deleted - SMS and Email notifications sent', [
-                                'activity_id' => $activity->id,
-                                'task_id' => $activity->mainTask->id,
-                                'team_leader_id' => $activity->mainTask->team_leader_id
-                            ]);
-                        }
+                        \Log::info('Activity deleted - SMS and Email notifications sent', [
+                            'activity_id' => $activityId,
+                            'task_id' => $mainTaskId,
+                            'team_leader_id' => $teamLeaderId
+                        ]);
                     } catch (\Exception $e) {
                         \Log::error('Notification error in task_delete_activity: ' . $e->getMessage());
                     }
