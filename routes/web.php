@@ -939,9 +939,9 @@ Route::prefix('api/v1')->name('api.v1.')->group(function () {
         Route::put('/accounts-receivable/customers/{id}', [AccountsReceivableController::class, 'updateCustomer'])->name('ar.customers.update.put');
         Route::get('/accounts-receivable/invoices', [AccountsReceivableController::class, 'invoices'])->name('ar.invoices');
         Route::post('/accounts-receivable/invoices/data', [AccountsReceivableController::class, 'getInvoicesData'])->name('ar.invoices.data');
-        Route::get('/accounts-receivable/invoices/{id}', [AccountsReceivableController::class, 'showInvoice'])->name('ar.invoices.show');
         Route::get('/accounts-receivable/invoices/{id}/advanced', [AccountsReceivableController::class, 'advancedInvoiceView'])->name('ar.invoices.advanced');
         Route::get('/accounts-receivable/invoices/{id}/pdf', [AccountsReceivableController::class, 'exportInvoicePdf'])->name('ar.invoices.pdf');
+        Route::get('/accounts-receivable/invoices/{id}', [AccountsReceivableController::class, 'showInvoice'])->name('ar.invoices.show');
         Route::post('/accounts-receivable/invoices', [AccountsReceivableController::class, 'storeInvoice'])->name('ar.invoices.store');
         Route::put('/accounts-receivable/invoices/{id}', [AccountsReceivableController::class, 'updateInvoice'])->name('ar.invoices.update');
         Route::post('/accounts-receivable/invoices/{id}/approve', [AccountsReceivableController::class, 'approveInvoice'])->name('ar.invoices.approve');

@@ -1627,21 +1627,89 @@ class AccountsReceivableController extends Controller
     /**
      * Show Invoice
      */
-    public function showInvoice($id)
+    public function showInvoice(Request $request, $id)
     {
+        $user = Auth::user();
+        
+        if (!$user) {
+            return redirect()->route('login');
+        }
+        
+        if (!$user->hasAnyRole(['Accountant', 'System Admin', 'CEO'])) {
+            abort(403, 'Access denied. You do not have permission to view this invoice.');
+        }
+
         try {
-            $invoice = Invoice::with(['customer', 'items.account', 'payments'])->findOrFail($id);
-            
-            return response()->json([
-                'success' => true,
-                'invoice' => $invoice
-            ]);
+            // If AJAX/JSON request, return JSON (for modals)
+            if ($request->ajax() || $request->wantsJson()) {
+                $invoice = Invoice::with(['customer', 'items.account', 'payments'])->findOrFail($id);
+                
+                return response()->json([
+                    'success' => true,
+                    'invoice' => $invoice
+                ]);
+            }
+
+            // Otherwise, return full blade view
+            $invoice = Invoice::with([
+                'customer',
+                'items.account',
+                'payments.bankAccount',
+                'payments.creator',
+                'hodApprover',
+                'ceoApprover',
+                'creator',
+                'updater'
+            ])->findOrFail($id);
+
+            // Get all payments for this invoice
+            $invoicePayments = $invoice->payments()->with('creator')->orderBy('payment_date', 'desc')->get();
+
+            // Calculate statistics
+            $totalPayments = $invoicePayments->sum('amount');
+            $paymentCount = $invoicePayments->count();
+            $daysOutstanding = $invoice->due_date ? now()->diffInDays($invoice->due_date, false) : 0;
+
+            // Get activity logs if available
+            $activityLogs = [];
+            try {
+                if (class_exists(\App\Models\ActivityLog::class)) {
+                    $activityLogs = \App\Models\ActivityLog::where('model_type', Invoice::class)
+                        ->where('model_id', $invoice->id)
+                        ->with('user')
+                        ->orderBy('created_at', 'desc')
+                        ->get();
+                }
+            } catch (\Exception $e) {
+                Log::warning('Failed to load activity logs for invoice: ' . $e->getMessage());
+            }
+
+            return view('modules.accounting.accounts-receivable.invoice-show', compact(
+                'invoice',
+                'invoicePayments',
+                'totalPayments',
+                'paymentCount',
+                'daysOutstanding',
+                'activityLogs'
+            ));
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            Log::error('Invoice not found: ' . $e->getMessage());
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invoice not found.'
+                ], 404);
+            }
+            return redirect()->route('modules.accounting.ar.invoices')->with('error', 'Invoice not found.');
         } catch (\Exception $e) {
             Log::error('Error fetching invoice: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Error fetching invoice: ' . $e->getMessage()
-            ], 500);
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error fetching invoice: ' . $e->getMessage()
+                ], 500);
+            }
+            return redirect()->route('modules.accounting.ar.invoices')->with('error', 'An error occurred while loading the invoice.');
         }
     }
 
