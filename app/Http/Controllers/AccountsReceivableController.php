@@ -694,15 +694,30 @@ class AccountsReceivableController extends Controller
         }
 
         $payments = $query->orderBy('payment_date', 'desc')->paginate(20);
-        // Get invoices that are not fully paid (have balance > 0) - exclude Cancelled and Paid
+
+        return view('modules.accounting.accounts-receivable.payments', compact('payments'));
+    }
+
+    /**
+     * Show Create Payment Page
+     */
+    public function createInvoicePayment(Request $request)
+    {
+        $user = Auth::user();
+        
+        if (!$user->hasAnyRole(['Accountant', 'System Admin'])) {
+            abort(403);
+        }
+
+        // Get invoices that are not fully paid (have balance > 0) and are approved - exclude Cancelled, Paid, Draft, Pending Approval
         $invoices = Invoice::where('balance', '>', 0)
-            ->whereNotIn('status', ['Cancelled', 'Paid'])
+            ->whereNotIn('status', ['Cancelled', 'Paid', 'Draft', 'Pending for Approval', 'Pending CEO Approval', 'Rejected'])
             ->with('customer')
             ->orderBy('invoice_date', 'desc')
             ->get();
         $bankAccounts = \App\Models\BankAccount::all();
 
-        return view('modules.accounting.accounts-receivable.payments', compact('payments', 'invoices', 'bankAccounts'));
+        return view('modules.accounting.accounts-receivable.create-payment', compact('invoices', 'bankAccounts'));
     }
 
     /**
@@ -1627,6 +1642,65 @@ class AccountsReceivableController extends Controller
                 'success' => false,
                 'message' => 'Error fetching invoice: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Advanced Invoice View - Comprehensive detailed view
+     */
+    public function advancedInvoiceView($id)
+    {
+        $user = Auth::user();
+        
+        if (!$user->hasAnyRole(['Accountant', 'System Admin'])) {
+            abort(403);
+        }
+
+        try {
+            $invoice = Invoice::with([
+                'customer',
+                'items.account',
+                'payments.bankAccount',
+                'payments.createdBy',
+                'hodApprover',
+                'ceoApprover',
+                'creator' => function($query) {
+                    $query->select('id', 'name', 'email');
+                },
+                'updater' => function($query) {
+                    $query->select('id', 'name', 'email');
+                }
+            ])->findOrFail($id);
+
+            // Get activity logs if available
+            $activityLogs = [];
+            if (class_exists(\App\Models\ActivityLog::class)) {
+                $activityLogs = \App\Models\ActivityLog::where('subject_type', Invoice::class)
+                    ->where('subject_id', $invoice->id)
+                    ->with('causer')
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+            }
+
+            // Calculate payment statistics
+            $totalPayments = $invoice->payments->sum('amount');
+            $paymentCount = $invoice->payments->count();
+            $averagePayment = $paymentCount > 0 ? $totalPayments / $paymentCount : 0;
+            
+            // Days outstanding
+            $daysOutstanding = $invoice->due_date ? now()->diffInDays($invoice->due_date, false) : 0;
+
+            return view('modules.accounting.accounts-receivable.invoice-advanced', compact(
+                'invoice',
+                'activityLogs',
+                'totalPayments',
+                'paymentCount',
+                'averagePayment',
+                'daysOutstanding'
+            ));
+        } catch (\Exception $e) {
+            Log::error('Error loading advanced invoice view: ' . $e->getMessage());
+            return redirect()->route('modules.accounting.ar.invoices')->with('error', 'Invoice not found');
         }
     }
 

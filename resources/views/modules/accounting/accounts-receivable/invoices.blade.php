@@ -693,7 +693,12 @@
                 </td>
                 <td class="text-center">
                     <div class="btn-group" role="group">
-                        <button class="btn btn-sm btn-info" onclick="viewInvoice(${inv.id})" title="View">View</button>
+                        <button class="btn btn-sm btn-info" onclick="viewInvoice(${inv.id})" title="Quick View">
+                            <i class="bx bx-show"></i> View
+                        </button>
+                        <a href="{{ url('modules/accounting/accounts-receivable/invoices') }}/${inv.id}/advanced" class="btn btn-sm btn-primary" title="Advanced View">
+                            <i class="bx bx-detail"></i> Advanced
+                        </a>
                         ${inv.status !== 'Paid' ? `<button class="btn btn-sm btn-warning" onclick="editInvoice(${inv.id})" title="Edit">Edit</button>` : ''}
                         <button class="btn btn-sm btn-success" onclick="recordPayment(${inv.id})" title="Record Payment - Opens dedicated payment page">
                             <i class="bx bx-money me-1"></i>Record Payment
@@ -1443,6 +1448,9 @@ async function viewInvoice(id) {
                                 </div>
                             </div>
                             <div class="modal-footer">
+                                <a href="{{ url('modules/accounting/accounts-receivable/invoices') }}/${id}/advanced" class="btn btn-primary">
+                                    <i class="bx bx-detail"></i> Advanced View
+                                </a>
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                                 <button type="button" class="btn btn-danger" onclick="exportInvoicePdf(${id})">
                                     <i class="bx bxs-file-pdf"></i> Export PDF

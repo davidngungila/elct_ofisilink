@@ -125,9 +125,9 @@
                     <button class="btn btn-light btn-sm" id="btn-refresh" title="Refresh">
                         <i class="bx bx-refresh"></i>
                     </button>
-                    <button class="btn btn-light btn-sm" onclick="openPaymentModal()" title="Record Payment">
+                    <a href="{{ route('modules.accounting.ar.payments.create') }}" class="btn btn-light btn-sm" title="Record Payment">
                         <i class="bx bx-plus"></i> Record Payment
-                    </button>
+                    </a>
                 </div>
             </div>
         </div>
@@ -351,104 +351,6 @@
     </div>
 </div>
 
-<!-- Payment Modal -->
-<div class="modal fade" id="paymentModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title">Record Invoice Payment</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <form id="paymentForm">
-                <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label">Invoice <span class="text-danger">*</span></label>
-                            <div class="input-group">
-                                <select class="form-select" id="paymentInvoice" name="invoice_id" required>
-                                    <option value="">Select Invoice</option>
-                                    @foreach($invoices as $invoice)
-                                    <option value="{{ $invoice->id }}" data-balance="{{ $invoice->balance }}">
-                                        {{ $invoice->invoice_no }} - {{ $invoice->customer->name ?? 'N/A' }} (Balance: TZS {{ number_format($invoice->balance, 2) }})
-                                    </option>
-                                    @endforeach
-                                </select>
-                                <button class="btn btn-outline-primary" type="button" id="btnViewInvoiceModal" title="View Invoice" onclick="viewSelectedInvoiceFromModal()" style="display: none;">
-                                    <i class="bx bx-show"></i> View
-                                </button>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Payment Date <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" id="paymentDate" name="payment_date" value="{{ date('Y-m-d') }}" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Amount <span class="text-danger">*</span></label>
-                            <input type="number" step="0.01" class="form-control" id="paymentAmount" name="amount" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Payment Method <span class="text-danger">*</span></label>
-                            <select class="form-select" id="paymentMethod" name="payment_method" required>
-                                <option value="">Select Method</option>
-                                <option value="Cash">Cash</option>
-                                <option value="Bank Transfer">Bank Transfer</option>
-                                <option value="Cheque">Cheque</option>
-                                <option value="Mobile Money">Mobile Money</option>
-                                <option value="Credit Card">Credit Card</option>
-                                <option value="Other">Other</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Reference No</label>
-                            <input type="text" class="form-control" id="paymentReference" name="reference_no">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">Bank Account</label>
-                            <select class="form-select" id="paymentBankAccount" name="bank_account_id">
-                                <option value="">Select Bank Account</option>
-                                @foreach($bankAccounts as $bank)
-                                <option value="{{ $bank->id }}">{{ $bank->name }} - {{ $bank->account_number }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-md-12">
-                            <label class="form-label">Notes</label>
-                            <textarea class="form-control" id="paymentNotes" name="notes" rows="2"></textarea>
-                        </div>
-                    </div>
-                    
-                </div>
-                
-                <!-- Invoice Preview Section -->
-                <div class="row g-3 mt-2">
-                    <div class="col-12" id="invoicePreviewSection" style="display: none;">
-                        <div class="card border-primary">
-                            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center" style="cursor: pointer;" onclick="toggleInvoicePreview()">
-                                <h6 class="mb-0">
-                                    <i class="bx bx-file me-2"></i>Invoice Preview
-                                </h6>
-                                <i class="bx bx-chevron-up" id="invoicePreviewToggle"></i>
-                            </div>
-                            <div class="card-body" id="invoicePreviewContent">
-                                <div class="text-center py-3">
-                                    <div class="spinner-border text-primary" role="status">
-                                        <span class="visually-hidden">Loading...</span>
-                                    </div>
-                                    <p class="text-muted mt-2 mb-0">Loading invoice details...</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-success">Record Payment</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
 @endsection
 
 @push('scripts')

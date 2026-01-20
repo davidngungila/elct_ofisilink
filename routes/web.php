@@ -408,10 +408,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/modules/tasks/activities/{activityId}', [App\Http\Controllers\TaskController::class, 'showActivity'])->name('modules.tasks.activities.show');
     Route::get('/modules/tasks/activities/{activityId}/edit', [App\Http\Controllers\TaskController::class, 'editActivity'])->name('modules.tasks.activities.edit');
     Route::get('/modules/tasks/activities/{activityId}/report-progress', [App\Http\Controllers\TaskController::class, 'reportProgress'])->name('modules.tasks.activities.report-progress');
+    Route::get('/modules/tasks/activities/{activityId}/report', [App\Http\Controllers\TaskController::class, 'reportProgress'])->name('modules.tasks.activities.report');
     
     // Parameterized routes (must be last to avoid conflicts)
     Route::get('/modules/tasks/{taskId}/activities/create', [App\Http\Controllers\TaskController::class, 'createActivity'])->name('modules.tasks.activities.create');
     Route::get('/modules/tasks/{id}/edit', [App\Http\Controllers\TaskController::class, 'edit'])->name('modules.tasks.edit');
+    Route::get('/modules/tasks/{id}/report-pdf', [App\Http\Controllers\TaskController::class, 'generateTaskReportPdf'])->name('modules.tasks.report-pdf');
     Route::get('/modules/tasks/{id}', [App\Http\Controllers\TaskController::class, 'show'])->name('modules.tasks.show');
     Route::get('/modules/tasks/reports/{id}', [App\Http\Controllers\TaskController::class, 'showReport'])->name('modules.tasks.reports.show');
     
@@ -938,6 +940,7 @@ Route::prefix('api/v1')->name('api.v1.')->group(function () {
         Route::get('/accounts-receivable/invoices', [AccountsReceivableController::class, 'invoices'])->name('ar.invoices');
         Route::post('/accounts-receivable/invoices/data', [AccountsReceivableController::class, 'getInvoicesData'])->name('ar.invoices.data');
         Route::get('/accounts-receivable/invoices/{id}', [AccountsReceivableController::class, 'showInvoice'])->name('ar.invoices.show');
+        Route::get('/accounts-receivable/invoices/{id}/advanced', [AccountsReceivableController::class, 'advancedInvoiceView'])->name('ar.invoices.advanced');
         Route::get('/accounts-receivable/invoices/{id}/pdf', [AccountsReceivableController::class, 'exportInvoicePdf'])->name('ar.invoices.pdf');
         Route::post('/accounts-receivable/invoices', [AccountsReceivableController::class, 'storeInvoice'])->name('ar.invoices.store');
         Route::put('/accounts-receivable/invoices/{id}', [AccountsReceivableController::class, 'updateInvoice'])->name('ar.invoices.update');
@@ -947,9 +950,10 @@ Route::prefix('api/v1')->name('api.v1.')->group(function () {
         Route::post('/accounts-receivable/invoices/{id}/payment', [AccountsReceivableController::class, 'storeInvoicePaymentForInvoice'])->name('ar.invoices.payment.store');
         Route::get('/accounts-receivable/payments', [AccountsReceivableController::class, 'invoicePayments'])->name('ar.payments');
         Route::post('/accounts-receivable/payments/data', [AccountsReceivableController::class, 'getPaymentsData'])->name('ar.payments.data');
+        Route::get('/accounts-receivable/payments/create', [AccountsReceivableController::class, 'createInvoicePayment'])->name('ar.payments.create');
+        Route::post('/accounts-receivable/payments/create', [AccountsReceivableController::class, 'storeInvoicePayment'])->name('ar.payments.store');
         Route::get('/accounts-receivable/payments/{id}', [AccountsReceivableController::class, 'showInvoicePayment'])->name('ar.payments.show');
         Route::get('/accounts-receivable/payments/{id}/pdf', [AccountsReceivableController::class, 'exportInvoicePaymentPdf'])->name('ar.payments.pdf');
-        Route::post('/accounts-receivable/payments', [AccountsReceivableController::class, 'storeInvoicePayment'])->name('ar.payments.store');
         Route::get('/accounts-receivable/credit-memos', [AccountsReceivableController::class, 'creditMemos'])->name('ar.credit-memos');
         Route::post('/accounts-receivable/credit-memos/data', [AccountsReceivableController::class, 'getCreditMemosData'])->name('ar.credit-memos.data');
         Route::get('/accounts-receivable/credit-memos/{id}', [AccountsReceivableController::class, 'showCreditMemo'])->name('ar.credit-memos.show');
