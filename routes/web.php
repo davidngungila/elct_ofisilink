@@ -11,6 +11,8 @@ use App\Http\Controllers\Admin\PermissionController as AdminPermissionController
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\ActivityLogController;
+use App\Http\Controllers\Admin\EmailProviderController;
+use App\Http\Controllers\Admin\SmsProviderController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\LeaveController;
@@ -80,8 +82,6 @@ Route::get('/storage/photos/{filename}', [\App\Http\Controllers\AccountSettingsC
 Route::get('/test-dashboard', function () {
     return view('test-dashboard');
 })->name('test-dashboard')->middleware('auth');
-
-
 
 
 // Authentication
@@ -1171,6 +1171,10 @@ Route::prefix('api/v1')->name('api.v1.')->group(function () {
         Route::post('settings/communication/test-email', [SettingsController::class, 'testEmail'])->name('admin.settings.communication.test-email');
         Route::get('settings/communication/check-email', [SettingsController::class, 'checkEmailStatus'])->name('admin.settings.communication.check-email');
         Route::get('settings/communication/check-sms', [SettingsController::class, 'checkSMSStatus'])->name('admin.settings.communication.check-sms');
+        
+        // Email and SMS Provider Create Routes
+        Route::get('settings/communication/email-providers/create', [EmailProviderController::class, 'create'])->name('admin.settings.communication.email-providers.create');
+        Route::get('settings/communication/sms-providers/create', [SmsProviderController::class, 'create'])->name('admin.settings.communication.sms-providers.create');
         
         // Notification Providers Management
         Route::get('settings/notification-providers', [SettingsController::class, 'getNotificationProviders'])->name('admin.settings.notification-providers');
