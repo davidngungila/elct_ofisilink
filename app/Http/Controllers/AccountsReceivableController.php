@@ -2547,6 +2547,77 @@ class AccountsReceivableController extends Controller
     }
 
     /**
+     * Advanced Payment View - Comprehensive detailed view
+     */
+    public function advancedPaymentView($id)
+    {
+        $user = Auth::user();
+        
+        if (!$user) {
+            return redirect()->route('login');
+        }
+        
+        if (!$user->hasAnyRole(['Accountant', 'System Admin', 'CEO'])) {
+            abort(403, 'Access denied. You do not have permission to view this payment.');
+        }
+
+        try {
+            $payment = InvoicePayment::with([
+                'invoice.customer',
+                'invoice.items.account',
+                'invoice.hodApprover',
+                'invoice.ceoApprover',
+                'invoice.creator',
+                'bankAccount',
+                'creator' => function($query) {
+                    $query->select('id', 'name', 'email');
+                }
+            ])->findOrFail($id);
+
+            // Get activity logs if available
+            $activityLogs = [];
+            try {
+                if (class_exists(\App\Models\ActivityLog::class)) {
+                    $activityLogs = \App\Models\ActivityLog::where('model_type', InvoicePayment::class)
+                        ->where('model_id', $payment->id)
+                        ->with('user')
+                        ->orderBy('created_at', 'desc')
+                        ->get();
+                }
+            } catch (\Exception $e) {
+                Log::warning('Failed to load activity logs for payment: ' . $e->getMessage());
+            }
+
+            // Get all payments for this invoice to show payment history
+            $invoicePayments = InvoicePayment::where('invoice_id', $payment->invoice_id)
+                ->with('creator')
+                ->orderBy('payment_date', 'desc')
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            // Calculate days since payment
+            $daysSincePayment = $payment->payment_date ? now()->diffInDays($payment->payment_date) : 0;
+
+            return view('modules.accounting.accounts-receivable.payment-advanced', compact(
+                'payment',
+                'activityLogs',
+                'invoicePayments',
+                'daysSincePayment'
+            ));
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            Log::error('Payment not found in advanced view: ' . $e->getMessage());
+            return redirect()->route('modules.accounting.ar.payments')->with('error', 'Payment not found.');
+        } catch (\Exception $e) {
+            Log::error('Error loading advanced payment view: ' . $e->getMessage(), [
+                'payment_id' => $id,
+                'user_id' => $user->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+            return redirect()->route('modules.accounting.ar.payments')->with('error', 'An error occurred while loading the payment. Please try again.');
+        }
+    }
+
+    /**
      * Export Invoice Payment PDF
      */
     public function exportInvoicePaymentPdf($id)

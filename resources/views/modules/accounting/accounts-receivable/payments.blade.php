@@ -476,6 +476,7 @@ const token = '{{ csrf_token() }}';
                 <td class="text-center">
                     <div class="btn-group" role="group">
                         <button class="btn btn-sm btn-info" onclick="viewPayment(${p.id})" title="View">View</button>
+                        <a href="/modules/accounting/accounts-receivable/payments/${p.id}/advanced" class="btn btn-sm btn-primary" title="Advanced View">Advanced</a>
                         <button class="btn btn-sm btn-danger" onclick="exportPaymentPdf(${p.id})" title="PDF">PDF</button>
                     </div>
                 </td>
@@ -1139,6 +1140,9 @@ async function viewPayment(id) {
                                 </div>
                             </div>
                             <div class="modal-footer">
+                                <a href="/modules/accounting/accounts-receivable/payments/${payment.id}/advanced" class="btn btn-primary">
+                                    <i class="bx bx-show me-1"></i>Advanced View
+                                </a>
                                 <button type="button" class="btn btn-success" onclick="exportPaymentPdf(${payment.id}); bootstrap.Modal.getInstance(document.getElementById('viewPaymentModal')).hide();">
                                     <i class="bx bxs-file-pdf me-1"></i>Export PDF
                                 </button>
