@@ -904,18 +904,18 @@ class TaskController extends Controller
                         }
                     }
 
-                    // Send SMS notifications
+                    // Send SMS and Email notifications
                     try {
                         // Notify team leader
                         if ($mainTask->team_leader_id) {
                             $teamLeader = User::find($mainTask->team_leader_id);
                             if ($teamLeader) {
-                                $message = "New Task Assigned: You have been assigned as team leader for task '{$mainTask->name}'. Priority: {$mainTask->priority}.";
+                                $message = "New Task Assigned: You have been assigned as team leader for task '{$mainTask->name}'. Priority: {$mainTask->priority}. Start Date: {$mainTask->start_date->format('M d, Y')}. End Date: {$mainTask->end_date->format('M d, Y')}.";
                                 $this->notificationService->notify(
                                     $teamLeader->id,
                                     $message,
-                                    route('modules.tasks.index'),
-                                    'New Task Assignment'
+                                    route('modules.tasks.show', $mainTask->id),
+                                    'New Task Assignment - ' . $mainTask->name
                                 );
                             }
                         }
@@ -926,18 +926,18 @@ class TaskController extends Controller
                             foreach ($uniqueUserIds as $userId) {
                                 $assignedUser = User::find($userId);
                                 if ($assignedUser && $userId != $mainTask->team_leader_id) {
-                                    $message = "Task Activity Assigned: You have been assigned to activity in task '{$mainTask->name}'.";
+                                    $message = "Task Activity Assigned: You have been assigned to activity in task '{$mainTask->name}'. Please check your assigned activities and start working on them.";
                                     $this->notificationService->notify(
                                         $userId,
                                         $message,
-                                        route('modules.tasks.index'),
-                                        'Task Activity Assignment'
+                                        route('modules.tasks.show', $mainTask->id),
+                                        'Task Activity Assignment - ' . $mainTask->name
                                     );
                                 }
                             }
                         }
 
-                        \Log::info('Task created - SMS notifications sent', [
+                        \Log::info('Task created - SMS and Email notifications sent', [
                             'task_id' => $mainTask->id,
                             'team_leader_id' => $mainTask->team_leader_id,
                             'assigned_users' => $uniqueUserIds ?? []
@@ -1021,7 +1021,7 @@ class TaskController extends Controller
                         }
                     }
 
-                    // Send SMS notifications
+                    // Send SMS and Email notifications
                     try {
                         $newTeamLeaderId = $mainTask->team_leader_id;
                         $newStatus = $mainTask->status;
@@ -1030,12 +1030,12 @@ class TaskController extends Controller
                         if ($oldTeamLeaderId != $newTeamLeaderId && $newTeamLeaderId) {
                             $newLeader = User::find($newTeamLeaderId);
                             if ($newLeader) {
-                                $message = "Task Leader Assignment: You have been assigned as team leader for task '{$mainTask->name}'.";
+                                $message = "Task Leader Assignment: You have been assigned as team leader for task '{$mainTask->name}'. Please review the task details and assigned activities.";
                                 $this->notificationService->notify(
                                     $newLeader->id,
                                     $message,
-                                    route('modules.tasks.index'),
-                                    'Task Leader Assignment'
+                                    route('modules.tasks.show', $mainTask->id),
+                                    'Task Leader Assignment - ' . $mainTask->name
                                 );
                             }
                         }
@@ -1074,7 +1074,7 @@ class TaskController extends Controller
                             }
                         }
 
-                        \Log::info('Task updated - SMS notifications sent', [
+                        \Log::info('Task updated - SMS and Email notifications sent', [
                             'task_id' => $mainTask->id,
                             'status_changed' => $oldStatus != $newStatus,
                             'leader_changed' => $oldTeamLeaderId != $newTeamLeaderId,
@@ -1121,23 +1121,41 @@ class TaskController extends Controller
                         ]);
                     }
 
-                    // Send SMS notification to team leader
+                    // Send SMS and Email notifications to team leader and assigned users
                     try {
+                        // Notify team leader
                         if ($mainTask->team_leader_id) {
-                            $message = "New Activity Added: Activity '{$activity->name}' has been added to task '{$mainTask->name}'.";
+                            $message = "New Activity Added: Activity '{$activity->name}' has been added to task '{$mainTask->name}'. Please review and assign team members if needed.";
                             $this->notificationService->notify(
                                 $mainTask->team_leader_id,
                                 $message,
-                                route('modules.tasks.index'),
-                                'New Activity Added'
+                                route('modules.tasks.show', $mainTask->id),
+                                'New Activity Added - ' . $activity->name
                             );
-                            
-                            \Log::info('Activity added - SMS notification sent', [
-                                'activity_id' => $activity->id,
-                                'task_id' => $mainTask->id,
-                                'team_leader_id' => $mainTask->team_leader_id
-                            ]);
                         }
+
+                        // Notify assigned users
+                        if (!empty($userIds)) {
+                            foreach ($userIds as $userId) {
+                                $assignedUser = User::find($userId);
+                                if ($assignedUser && $userId != $mainTask->team_leader_id) {
+                                    $message = "Activity Assignment: You have been assigned to activity '{$activity->name}' in task '{$mainTask->name}'. Please check your assigned activities and start working on them.";
+                                    $this->notificationService->notify(
+                                        $userId,
+                                        $message,
+                                        route('modules.tasks.show', $mainTask->id),
+                                        'Activity Assignment - ' . $activity->name
+                                    );
+                                }
+                            }
+                        }
+                            
+                        \Log::info('Activity added - SMS and Email notifications sent', [
+                            'activity_id' => $activity->id,
+                            'task_id' => $mainTask->id,
+                            'team_leader_id' => $mainTask->team_leader_id,
+                            'assigned_users' => $userIds ?? []
+                        ]);
                     } catch (\Exception $e) {
                         \Log::error('Notification error in task_add_activity: ' . $e->getMessage());
                     }
@@ -1213,35 +1231,35 @@ class TaskController extends Controller
                         $newAssignedUserIds[] = $userId;
                     }
 
-                    // Send SMS notifications
+                    // Send SMS and Email notifications
                     try {
                         // Notify newly assigned users
                         $newlyAssigned = array_diff($newAssignedUserIds, $oldAssignedUserIds);
                         foreach ($newlyAssigned as $userId) {
                             $assignedUser = User::find($userId);
                             if ($assignedUser) {
-                                $message = "Activity Assigned: You have been assigned to activity '{$activity->name}' in task '{$activity->mainTask->name}'.";
+                                $message = "Activity Assigned: You have been assigned to activity '{$activity->name}' in task '{$activity->mainTask->name}'. Please check your assigned activities and start working on them.";
                                 $this->notificationService->notify(
                                     $userId,
                                     $message,
-                                    route('modules.tasks.index'),
-                                    'Activity Assignment'
+                                    route('modules.tasks.show', $activity->mainTask->id),
+                                    'Activity Assignment - ' . $activity->name
                                 );
                             }
                         }
 
                         // Notify team leader if assignments changed
                         if ($activity->mainTask && $activity->mainTask->team_leader_id) {
-                            $message = "Activity Updated: Activity '{$activity->name}' in task '{$activity->mainTask->name}' has been updated.";
+                            $message = "Activity Updated: Activity '{$activity->name}' in task '{$activity->mainTask->name}' has been updated. Please review the changes.";
                             $this->notificationService->notify(
                                 $activity->mainTask->team_leader_id,
                                 $message,
-                                route('modules.tasks.index'),
-                                'Activity Updated'
+                                route('modules.tasks.show', $activity->mainTask->id),
+                                'Activity Updated - ' . $activity->name
                             );
                         }
 
-                        \Log::info('Activity updated - SMS notifications sent', [
+                        \Log::info('Activity updated - SMS and Email notifications sent', [
                             'activity_id' => $activity->id,
                             'newly_assigned_users' => $newlyAssigned
                         ]);
@@ -1259,18 +1277,43 @@ class TaskController extends Controller
                     $taskName = $activity->mainTask->name ?? 'Unknown Task';
                     $activity->delete();
 
-                    // Send SMS notification to team leader
+                    // Send SMS and Email notifications to team leader and assigned users
                     try {
-                        if ($activity->mainTask && $activity->mainTask->team_leader_id) {
-                            $message = "Activity Deleted: Activity '{$activityName}' has been deleted from task '{$taskName}'.";
+                        $mainTask = $activity->mainTask;
+                        
+                        // Notify team leader
+                        if ($mainTask && $mainTask->team_leader_id) {
+                            $message = "Activity Deleted: Activity '{$activityName}' has been removed from task '{$taskName}'. Please review the updated task structure.";
                             $this->notificationService->notify(
-                                $activity->mainTask->team_leader_id,
+                                $mainTask->team_leader_id,
                                 $message,
-                                route('modules.tasks.index'),
-                                'Activity Deleted'
+                                route('modules.tasks.show', $mainTask->id),
+                                'Activity Deleted - ' . $activityName
                             );
+                        }
+
+                        // Get assigned users before deletion
+                        $assignedUserIds = $activity->assignedUsers->pluck('id')->toArray();
+                        
+                        // Notify assigned users (if they can still be found)
+                        if (!empty($assignedUserIds)) {
+                            foreach ($assignedUserIds as $userId) {
+                                if ($userId != ($mainTask->team_leader_id ?? null)) {
+                                    $assignedUser = User::find($userId);
+                                    if ($assignedUser) {
+                                        $message = "Activity Removed: Activity '{$activityName}' that you were assigned to in task '{$taskName}' has been removed. Please check with your team leader for updates.";
+                                        $this->notificationService->notify(
+                                            $userId,
+                                            $message,
+                                            route('modules.tasks.show', $mainTask->id ?? 0),
+                                            'Activity Removed - ' . $activityName
+                                        );
+                                    }
+                                }
+                            }
+                        }
                             
-                            \Log::info('Activity deleted - SMS notification sent', [
+                            \Log::info('Activity deleted - SMS and Email notifications sent', [
                                 'activity_id' => $activity->id,
                                 'task_id' => $activity->mainTask->id,
                                 'team_leader_id' => $activity->mainTask->team_leader_id
@@ -1429,7 +1472,7 @@ class TaskController extends Controller
                     // Calculate progress (will update when report is approved)
                     // Note: Progress is calculated when report is approved, not on submission
 
-                    // Send SMS notifications
+                    // Send SMS and Email notifications
                     try {
                         $reporterName = $user->name;
                         $activityName = $activity->name;
@@ -1437,22 +1480,22 @@ class TaskController extends Controller
 
                         // Notify team leader
                         if ($mainTask->team_leader_id) {
-                            $message = "Progress Report Submitted: {$reporterName} has submitted a progress report for activity '{$activityName}' in task '{$taskName}'. Status: {$completionStatus}.";
+                            $message = "Progress Report Submitted: {$reporterName} has submitted a progress report for activity '{$activityName}' in task '{$taskName}'. Completion Status: {$completionStatus}. Please review and approve or reject the report.";
                             $this->notificationService->notify(
                                 $mainTask->team_leader_id,
                                 $message,
-                                route('modules.tasks.index'),
-                                'Progress Report Submitted'
+                                route('modules.tasks.reports.show', $report->id),
+                                'Progress Report Submitted - ' . $activityName
                             );
                         }
 
                         // Notify reporter
-                        $reporterMessage = "Report Submitted: Your progress report for activity '{$activityName}' has been submitted successfully. It is pending approval.";
+                        $reporterMessage = "Report Submitted: Your progress report for activity '{$activityName}' in task '{$taskName}' has been submitted successfully. Completion Status: {$completionStatus}. It is pending approval from your manager.";
                         $this->notificationService->notify(
                             $user->id,
                             $reporterMessage,
-                            route('modules.tasks.index'),
-                            'Report Submitted'
+                            route('modules.tasks.reports.show', $report->id),
+                            'Report Submitted - ' . $activityName
                         );
 
                         // Notify all action owners (leaders + approvers) as SMS when a report arrives
@@ -1481,12 +1524,12 @@ class TaskController extends Controller
                         }));
 
                         if (!empty($actionUserIds)) {
-                            $actionMessage = "Action Needed: Progress report for '{$activityName}' in task '{$taskName}' was submitted by {$reporterName}. Please review and act. Status: {$completionStatus}.";
+                            $actionMessage = "Action Needed: Progress report for '{$activityName}' in task '{$taskName}' was submitted by {$reporterName}. Completion Status: {$completionStatus}. Please review and take action (approve/reject).";
                             $this->notificationService->notify(
                                 $actionUserIds,
                                 $actionMessage,
-                                route('modules.tasks.index'),
-                                'Progress Report Action Needed'
+                                route('modules.tasks.reports.show', $report->id),
+                                'Progress Report Action Needed - ' . $activityName
                             );
                         }
 
@@ -1494,17 +1537,17 @@ class TaskController extends Controller
                         if ($allCompleted && $mainTask->team_leader_id) {
                             $teamLeader = User::find($mainTask->team_leader_id);
                             if ($teamLeader && $teamLeader->primary_department_id) {
-                                $message = "Task Completed: Task '{$taskName}' has been completed by the team.";
+                                $message = "Task Completed: Task '{$taskName}' has been completed by the team. All activities are now finished. Please review and close the task.";
                                 $this->notificationService->notifyHOD(
                                     $teamLeader->primary_department_id,
                                     $message,
-                                    route('modules.tasks.index'),
-                                    'Task Completed'
+                                    route('modules.tasks.show', $mainTask->id),
+                                    'Task Completed - ' . $taskName
                                 );
                             }
                         }
 
-                        \Log::info('Progress report submitted - SMS notifications sent', [
+                        \Log::info('Progress report submitted - SMS and Email notifications sent', [
                             'report_id' => $report->id,
                             'activity_id' => $activity->id,
                             'task_id' => $mainTask->id,
@@ -1599,7 +1642,7 @@ class TaskController extends Controller
                         $this->calculateTaskProgress($mainTask);
                     }
 
-                    // Send SMS notifications
+                    // Send SMS and Email notifications
                     try {
                         $reporter = $report->user;
                         $activity = $report->activity;
@@ -1609,15 +1652,27 @@ class TaskController extends Controller
                         if ($reporter && $activity) {
                             $activityName = $activity->name ?? 'Activity';
                             $taskName = $mainTask ? $mainTask->name : 'Task';
-                            $message = "Report Approved: Your progress report for activity '{$activityName}' in task '{$taskName}' has been approved by {$approverName}.";
+                            $approverComments = $report->approver_comments ? "\n\nApprover Comments: {$report->approver_comments}" : "";
+                            $message = "Report Approved: Your progress report for activity '{$activityName}' in task '{$taskName}' has been approved by {$approverName}.{$approverComments}";
                             $this->notificationService->notify(
                                 $reporter->id,
                                 $message,
-                                route('modules.tasks.index'),
-                                'Report Approved'
+                                route('modules.tasks.reports.show', $report->id),
+                                'Report Approved - ' . $activityName
                             );
 
-                            \Log::info('Report approved - SMS notification sent', [
+                            // Also notify team leader about approval
+                            if ($mainTask && $mainTask->team_leader_id && $mainTask->team_leader_id != $user->id) {
+                                $leaderMessage = "Report Approved: Progress report for activity '{$activityName}' in task '{$taskName}' submitted by {$reporter->name} has been approved by {$approverName}.";
+                                $this->notificationService->notify(
+                                    $mainTask->team_leader_id,
+                                    $leaderMessage,
+                                    route('modules.tasks.reports.show', $report->id),
+                                    'Report Approved - ' . $activityName
+                                );
+                            }
+
+                            \Log::info('Report approved - SMS and Email notifications sent', [
                                 'report_id' => $report->id,
                                 'reporter_id' => $reporter->id,
                                 'approver_id' => $user->id
@@ -1694,7 +1749,7 @@ class TaskController extends Controller
                         'approver_comments' => $comments,
                     ]);
 
-                    // Send SMS notifications
+                    // Send SMS and Email notifications
                     try {
                         $reporter = $report->user;
                         $activity = $report->activity;
@@ -1704,15 +1759,27 @@ class TaskController extends Controller
                         if ($reporter && $activity) {
                             $activityName = $activity->name ?? 'Activity';
                             $taskName = $mainTask ? $mainTask->name : 'Task';
-                            $message = "Report Rejected: Your progress report for activity '{$activityName}' in task '{$taskName}' has been rejected by {$approverName}. Please check comments.";
+                            $rejectionComments = $comments ? "\n\nRejection Reason: {$comments}" : "";
+                            $message = "Report Rejected: Your progress report for activity '{$activityName}' in task '{$taskName}' has been rejected by {$approverName}. Please review the comments, make necessary corrections, and resubmit.{$rejectionComments}";
                             $this->notificationService->notify(
                                 $reporter->id,
                                 $message,
-                                route('modules.tasks.index'),
-                                'Report Rejected'
+                                route('modules.tasks.reports.show', $report->id),
+                                'Report Rejected - ' . $activityName
                             );
 
-                            \Log::info('Report rejected - SMS notification sent', [
+                            // Also notify team leader about rejection
+                            if ($mainTask && $mainTask->team_leader_id && $mainTask->team_leader_id != $user->id) {
+                                $leaderMessage = "Report Rejected: Progress report for activity '{$activityName}' in task '{$taskName}' submitted by {$reporter->name} has been rejected by {$approverName}.";
+                                $this->notificationService->notify(
+                                    $mainTask->team_leader_id,
+                                    $leaderMessage,
+                                    route('modules.tasks.reports.show', $report->id),
+                                    'Report Rejected - ' . $activityName
+                                );
+                            }
+
+                            \Log::info('Report rejected - SMS and Email notifications sent', [
                                 'report_id' => $report->id,
                                 'reporter_id' => $reporter->id,
                                 'approver_id' => $user->id
@@ -1805,16 +1872,16 @@ class TaskController extends Controller
                     
                     $task->update(['status' => $newStatus]);
 
-                    // Send SMS notifications
+                    // Send SMS and Email notifications
                     try {
                         // Notify team leader
                         if ($task->team_leader_id) {
-                            $message = "Task Status Updated: Task '{$task->name}' status has been changed from '{$oldStatus}' to '{$newStatus}'.";
+                            $message = "Task Status Updated: Task '{$task->name}' status has been changed from '{$oldStatus}' to '{$newStatus}'. Please review the updated task details.";
                             $this->notificationService->notify(
                                 $task->team_leader_id,
                                 $message,
-                                route('modules.tasks.index'),
-                                'Task Status Updated'
+                                route('modules.tasks.show', $task->id),
+                                'Task Status Updated - ' . $task->name
                             );
                         }
 
@@ -1825,19 +1892,19 @@ class TaskController extends Controller
                                 if (!in_array($assignedUser->id, $assignedUserIds)) {
                                     $assignedUserIds[] = $assignedUser->id;
                                     if ($assignedUser->id != $task->team_leader_id) {
-                                        $message = "Task Status Updated: Task '{$task->name}' status has been changed to '{$newStatus}'.";
+                                        $message = "Task Status Updated: Task '{$task->name}' status has been changed from '{$oldStatus}' to '{$newStatus}'. Please review the updated task details and adjust your work accordingly.";
                                         $this->notificationService->notify(
                                             $assignedUser->id,
                                             $message,
-                                            route('modules.tasks.index'),
-                                            'Task Status Updated'
+                                            route('modules.tasks.show', $task->id),
+                                            'Task Status Updated - ' . $task->name
                                         );
                                     }
                                 }
                             }
                         }
 
-                        \Log::info('Task status updated - SMS notifications sent', [
+                        \Log::info('Task status updated - SMS and Email notifications sent', [
                             'task_id' => $task->id,
                             'old_status' => $oldStatus,
                             'new_status' => $newStatus,
