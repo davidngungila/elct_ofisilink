@@ -203,10 +203,11 @@ function viewAcknowledgmentStats(id) {
     content.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div></div>';
     modal.show();
     
-    const statsUrl = '{{ url("/notices") }}/' + id + '/acknowledgment-stats';
+    const statsUrl = '{{ route("notices.acknowledgment-stats", ":id") }}'.replace(':id', id);
     fetch(statsUrl, {
         headers: {
-            'Accept': 'application/json'
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
         }
     })
     .then(response => response.json())
@@ -277,7 +278,8 @@ function viewAcknowledgmentStats(id) {
         }
     })
     .catch(error => {
-        content.innerHTML = '<p class="text-danger">Error loading statistics</p>';
+        console.error('Error loading acknowledgment statistics:', error);
+        content.innerHTML = '<p class="text-danger">Error loading statistics: ' + (error.message || 'Unknown error') + '</p>';
     });
 }
 </script>
