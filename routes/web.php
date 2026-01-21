@@ -798,6 +798,12 @@ Route::prefix('api/v1')->name('api.v1.')->group(function () {
         Route::post('/deductions/bulk', [PayrollController::class, 'createBulkDeductions'])->name('deductions.bulk');
         Route::post('/deductions/bulk/preview', [PayrollController::class, 'calculateBulkDeductionPreview'])->name('deductions.bulk.preview');
         
+        // Payroll Formulas Routes
+        Route::get('/formulas', [PayrollController::class, 'showFormulasManagement'])->name('formulas.index');
+        Route::get('/formulas/{formulaId}', [PayrollController::class, 'showFormulaDetail'])->name('formulas.show');
+        Route::get('/formulas/data/all', [PayrollController::class, 'getFormulas'])->name('formulas.data');
+        Route::put('/formulas/{formulaId}', [PayrollController::class, 'updateFormula'])->name('formulas.update');
+        
         // Overtime Management Routes
         Route::get('/overtime', [App\Http\Controllers\PayrollOvertimeController::class, 'index'])->name('overtime.index');
         Route::post('/overtime', [App\Http\Controllers\PayrollOvertimeController::class, 'store'])->name('overtime.store');
