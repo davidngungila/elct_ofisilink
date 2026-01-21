@@ -138,22 +138,73 @@
         </table>
 
         <!-- Attendance -->
-        <h3>ATTENDANCE</h3>
-        <div>
-            <strong>Present:</strong>
-            <ol>
-                @forelse($attendees as $attendee)
-                    <li>
-                        {{ $attendee->user_name ?? $attendee->name }}
-                        @if($attendee->participant_type == 'external')
-                            <span class="badge badge-info">External</span>
-                        @endif
-                    </li>
-                @empty
-                    <li>No attendees recorded</li>
-                @endforelse
+        <h3 style="background-color: #fceeee; padding: 8px; border-left: 4px solid #940000; margin-top: 20px;">
+            ATTENDANCE REVIEW AND AGENDA REVIEW
+        </h3>
+        
+        @php
+            $boardMembers = $attendees->where('participant_type', 'staff');
+            $invitees = $attendees->where('participant_type', 'external');
+        @endphp
+        
+        @if($boardMembers->count() > 0)
+        <div style="margin-bottom: 15px;">
+            <h4 style="font-size: 10pt; margin-bottom: 8px;"><strong>ATTENDEES:</strong></h4>
+            <table style="font-size: 9pt;">
+                <thead>
+                    <tr style="background-color: #f9f9f9;">
+                        <th style="width: 8%; padding: 6px; text-align: center;">No.</th>
+                        <th style="width: 45%; padding: 6px;">NAME</th>
+                        <th style="width: 47%; padding: 6px;">POSITION/TITLE</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($boardMembers as $index => $member)
+                    <tr>
+                        <td style="padding: 6px; text-align: center;">{{ $index + 1 }}</td>
+                        <td style="padding: 6px;"><strong>{{ $member->user_name ?? $member->name }}</strong></td>
+                        <td style="padding: 6px;">{{ $member->role ?? 'Board Member' }}</td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+        @endif
+        
+        @if($invitees->count() > 0)
+        <div style="margin-bottom: 15px;">
+            <h4 style="font-size: 10pt; margin-bottom: 8px;"><strong>INVITEES:</strong></h4>
+            <table style="font-size: 9pt;">
+                <thead>
+                    <tr style="background-color: #f9f9f9;">
+                        <th style="width: 8%; padding: 6px; text-align: center;">No.</th>
+                        <th style="width: 45%; padding: 6px;">NAME</th>
+                        <th style="width: 47%; padding: 6px;">POSITION/TITLE</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($invitees as $index => $invitee)
+                    <tr>
+                        <td style="padding: 6px; text-align: center;">{{ $index + 1 }}</td>
+                        <td style="padding: 6px;"><strong>{{ $invitee->name }}</strong></td>
+                        <td style="padding: 6px;">{{ $invitee->role ?? 'Invitee' }}</td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+        @endif
+        
+        @if($agendas && $agendas->count() > 0)
+        <div style="margin-bottom: 15px;">
+            <h4 style="font-size: 10pt; margin-bottom: 8px;"><strong>AGENDA ITEMS:</strong></h4>
+            <ol style="padding-left: 20px; margin: 5px 0;">
+                @foreach($agendas as $agenda)
+                <li style="margin-bottom: 3px;">{{ $agenda->title }}</li>
+                @endforeach
             </ol>
         </div>
+        @endif
 
         <!-- Agenda Discussions -->
         @if($agendas->count() > 0)
