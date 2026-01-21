@@ -3,23 +3,81 @@
 
 <div class="minutes-preview p-4" style="font-family: 'Times New Roman', serif;">
     
-    {{-- HEADER SECTION --}}
-    <div class="text-center mb-5">
-        <h3 class="fw-bold text-uppercase mb-2" style="font-size: 20px; letter-spacing: 1px;">
-            {{ config('app.organization_name', 'ELCT ND SACCOS') }}
+    {{-- HEADER SECTION WITH ORGANIZATION INFORMATION --}}
+    <div class="text-center mb-5" style="border-bottom: 3px solid #333; padding-bottom: 20px;">
+        {{-- Organization Logo --}}
+        @if(isset($organizationInfo['logo']) && $organizationInfo['logo'])
+            @php
+                $logoPath = Storage::disk('public')->exists($organizationInfo['logo']) 
+                    ? Storage::disk('public')->url($organizationInfo['logo']) 
+                    : (file_exists(public_path('storage/' . $organizationInfo['logo'])) 
+                        ? asset('storage/' . $organizationInfo['logo']) 
+                        : null);
+            @endphp
+            @if($logoPath)
+                <div class="mb-3">
+                    <img src="{{ $logoPath }}" alt="Organization Logo" style="max-height: 80px; max-width: 200px;">
+                </div>
+            @endif
+        @endif
+        
+        {{-- Organization Name --}}
+        <h3 class="fw-bold text-uppercase mb-2" style="font-size: 22px; letter-spacing: 1px; color: #000;">
+            {{ $organizationInfo['name'] ?? config('app.name', 'Organization') }}
         </h3>
-        <h4 class="fw-bold text-uppercase mb-2" style="font-size: 18px;">
+        
+        {{-- Organization Details --}}
+        <div class="mb-3" style="font-size: 11px; line-height: 1.6; color: #555;">
+            @if($organizationInfo['full_address'])
+                <p class="mb-1"><strong>Address:</strong> {{ $organizationInfo['full_address'] }}</p>
+            @endif
+            <div class="d-flex justify-content-center gap-3 flex-wrap">
+                @if($organizationInfo['phone'])
+                    <span><strong>Phone:</strong> {{ $organizationInfo['phone'] }}</span>
+                @endif
+                @if($organizationInfo['email'])
+                    <span><strong>Email:</strong> {{ $organizationInfo['email'] }}</span>
+                @endif
+                @if($organizationInfo['website'])
+                    <span><strong>Website:</strong> {{ $organizationInfo['website'] }}</span>
+                @endif
+            </div>
+            <div class="d-flex justify-content-center gap-3 flex-wrap mt-1">
+                @if($organizationInfo['registration_number'])
+                    <span><strong>Reg. No:</strong> {{ $organizationInfo['registration_number'] }}</span>
+                @endif
+                @if($organizationInfo['tax_id'])
+                    <span><strong>Tax ID:</strong> {{ $organizationInfo['tax_id'] }}</span>
+                @endif
+            </div>
+        </div>
+        
+        {{-- Meeting Category and Title --}}
+        <h4 class="fw-bold text-uppercase mb-2" style="font-size: 18px; color: #000;">
             {{ $meeting->category_name ?? 'BOARD MEETING' }}
         </h4>
-        <h5 class="text-uppercase mb-2" style="font-size: 16px; font-weight: 600;">
+        <h5 class="text-uppercase mb-2" style="font-size: 16px; font-weight: 600; color: #333;">
             MINUTES OF THE {{ strtoupper($meeting->category_name ?? 'BOARD') }} MEETING
         </h5>
-        <h6 class="text-uppercase mb-2" style="font-size: 14px;">
-            {{ \Carbon\Carbon::parse($meeting->meeting_date)->format('d/m/Y') }}
-        </h6>
-        <p class="mb-0" style="font-size: 14px;">
-            <strong>Venue:</strong> {{ $meeting->venue ?? $meeting->location ?? 'N/A' }}
-        </p>
+        
+        {{-- Meeting Details --}}
+        <div class="mt-3" style="font-size: 14px; line-height: 1.8;">
+            <p class="mb-1">
+                <strong>Date:</strong> {{ \Carbon\Carbon::parse($meeting->meeting_date)->format('l, d F Y') }}
+            </p>
+            <p class="mb-1">
+                <strong>Time:</strong> {{ \Carbon\Carbon::parse($meeting->start_time)->format('h:i A') }} 
+                @if($meeting->end_time)
+                    - {{ \Carbon\Carbon::parse($meeting->end_time)->format('h:i A') }}
+                @endif
+            </p>
+            <p class="mb-0">
+                <strong>Venue:</strong> {{ $meeting->venue ?? $meeting->location ?? 'N/A' }}
+                @if($meeting->branch_name)
+                    ({{ $meeting->branch_name }})
+                @endif
+            </p>
+        </div>
     </div>
 
     {{-- OPENING SECTION --}}
