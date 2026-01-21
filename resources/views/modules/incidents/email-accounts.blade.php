@@ -108,9 +108,9 @@
                             <p class="mb-0 text-white-50">Manage and configure email accounts for incident synchronization</p>
                         </div>
                         <div class="d-flex gap-2 mt-3 mt-md-0">
-                            <button class="btn btn-light" data-bs-toggle="modal" data-bs-target="#addEmailModal" onclick="clearEmailForm()">
+                            <a href="{{ route('modules.incidents.email.accounts.create') }}" class="btn btn-light">
                                 <i class="bx bx-plus me-1"></i>Add Email Account
-                            </button>
+                            </a>
                             <a href="{{ route('modules.incidents.email.config') }}" class="btn btn-light">
                                 <i class="bx bx-arrow-back me-1"></i>Back to Email Config
                             </a>
@@ -201,12 +201,9 @@
                         <span class="badge bg-warning text-dark ms-2">{{ $stats['total'] }}</span>
                     </h5>
                     <div class="btn-group">
-                        <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#addEmailModal" onclick="clearEmailForm()">
+                        <a href="{{ route('modules.incidents.email.accounts.create') }}" class="btn btn-warning btn-sm">
                             <i class="bx bx-plus me-1"></i>Add Email Account
-                        </button>
-                        <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addEmailModal" onclick="quickSetupGmail()">
-                            <i class="bx bx-zap me-1"></i>Quick Setup: david.ngungila@emca.tech
-                        </button>
+                        </a>
                     </div>
                 </div>
                 <div class="card-body p-0">
@@ -371,12 +368,9 @@
                                         <div class="text-muted">
                                             <i class="bx bx-inbox fs-1"></i>
                                             <p class="mt-2 mb-0">No email configurations found.</p>
-                                            <button class="btn btn-warning mt-3" data-bs-toggle="modal" data-bs-target="#addEmailModal">
+                                            <a href="{{ route('modules.incidents.email.accounts.create') }}" class="btn btn-warning mt-3">
                                                 <i class="bx bx-plus me-1"></i>Add Your First Email Account
-                                            </button>
-                                            <button class="btn btn-success mt-2" data-bs-toggle="modal" data-bs-target="#addEmailModal" onclick="quickSetupGmail()">
-                                                <i class="bx bx-zap me-1"></i>Quick Setup: david.ngungila@emca.tech
-                                            </button>
+                                            </a>
                                         </div>
                                     </td>
                                 </tr>

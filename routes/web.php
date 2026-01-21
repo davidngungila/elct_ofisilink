@@ -857,6 +857,7 @@ Route::prefix('api/v1')->name('api.v1.')->group(function () {
         // Email configuration routes (must come before /{id} route)
         Route::get('/email-config', [App\Http\Controllers\IncidentController::class, 'emailConfig'])->name('modules.incidents.email.config');
         Route::get('/email-accounts', [App\Http\Controllers\IncidentController::class, 'emailAccounts'])->name('modules.incidents.email.accounts');
+        Route::get('/email-accounts/create', [App\Http\Controllers\IncidentController::class, 'createEmailAccount'])->name('modules.incidents.email.accounts.create');
         Route::get('/email-connection-test', [App\Http\Controllers\IncidentController::class, 'emailConnectionTest'])->name('modules.incidents.email.connection.test');
         Route::get('/email-retrieve', [App\Http\Controllers\IncidentController::class, 'emailRetrieve'])->name('modules.incidents.email.retrieve');
         Route::get('/email-transfer', [App\Http\Controllers\IncidentController::class, 'emailTransfer'])->name('modules.incidents.email.transfer');

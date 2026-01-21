@@ -797,6 +797,20 @@ class IncidentController extends Controller
         
         return view('modules.incidents.email-accounts', compact('configs', 'stats', 'recentSyncs'));
     }
+    
+    /**
+     * Show the form for creating a new email account
+     */
+    public function createEmailAccount()
+    {
+        $user = Auth::user();
+        
+        if (!$user->hasAnyRole(['HR Officer', 'System Admin'])) {
+            abort(403);
+        }
+
+        return view('modules.incidents.email-accounts.create');
+    }
 
     /**
      * Email connection testing page
