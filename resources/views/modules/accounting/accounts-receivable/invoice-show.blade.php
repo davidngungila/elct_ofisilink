@@ -176,7 +176,13 @@
                         <div>
                             <h6 class="text-muted mb-1">Days Outstanding</h6>
                             <h4 class="mb-0 {{ $daysOutstanding > 0 ? 'text-danger' : 'text-success' }}">
-                                {{ $daysOutstanding > 0 ? '+' : '' }}{{ $daysOutstanding }} Days
+                                @if($daysOutstanding > 0)
+                                    +{{ $daysOutstanding }} Days
+                                @elseif($daysOutstanding < 0)
+                                    {{ abs($daysOutstanding) }} Days Left
+                                @else
+                                    0 Days
+                                @endif
                             </h4>
                         </div>
                         <div class="text-warning">
@@ -418,39 +424,63 @@
                     <h5 class="mb-0"><i class="bx bx-info-circle me-2"></i>Invoice Details</h5>
                 </div>
                 <div class="card-body">
-                    <div class="mb-3">
-                        <strong>Invoice Date:</strong>
-                        <p class="mb-0">{{ $invoice->invoice_date ? $invoice->invoice_date->format('M d, Y') : 'N/A' }}</p>
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <label class="text-muted small d-block mb-1">Invoice Date</label>
+                            <div class="fw-semibold">{{ $invoice->invoice_date ? $invoice->invoice_date->format('M d, Y') : 'N/A' }}</div>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <strong>Due Date:</strong>
-                        <p class="mb-0 {{ $invoice->isOverdue() ? 'text-danger' : '' }}">
-                            {{ $invoice->due_date ? $invoice->due_date->format('M d, Y') : 'N/A' }}
-                            @if($invoice->isOverdue())
-                                <span class="badge bg-danger ms-2">Overdue</span>
-                            @endif
-                        </p>
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <label class="text-muted small d-block mb-1">Due Date</label>
+                            <div class="fw-semibold {{ $invoice->isOverdue() ? 'text-danger' : '' }}">
+                                {{ $invoice->due_date ? $invoice->due_date->format('M d, Y') : 'N/A' }}
+                                @if($invoice->isOverdue())
+                                    <span class="badge bg-danger ms-2">Overdue</span>
+                                @endif
+                            </div>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <strong>Status:</strong>
-                        <p class="mb-0">
-                            <span class="badge bg-{{ $invoice->status === 'Paid' ? 'success' : ($invoice->status === 'Overdue' ? 'danger' : ($invoice->status === 'Partially Paid' ? 'warning' : 'info')) }}">
-                                {{ $invoice->status ?? 'N/A' }}
-                            </span>
-                        </p>
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <label class="text-muted small d-block mb-1">Days Outstanding</label>
+                            <div class="fw-bold {{ $daysOutstanding > 0 ? 'text-danger' : ($daysOutstanding < 0 ? 'text-success' : '') }}">
+                                @if($daysOutstanding > 0)
+                                    <i class="bx bx-time-five me-1"></i>+{{ abs($daysOutstanding) }} Days
+                                @elseif($daysOutstanding < 0)
+                                    <i class="bx bx-check me-1"></i>{{ abs($daysOutstanding) }} Days Remaining
+                                @else
+                                    <i class="bx bx-calendar-check me-1"></i>Due Today
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <label class="text-muted small d-block mb-1">Status</label>
+                            <div>
+                                <span class="badge bg-{{ $invoice->status === 'Paid' ? 'success' : ($invoice->status === 'Overdue' ? 'danger' : ($invoice->status === 'Partially Paid' ? 'warning' : 'info')) }} px-3 py-2">
+                                    {{ $invoice->status ?? 'N/A' }}
+                                </span>
+                            </div>
+                        </div>
                     </div>
                     @if($invoice->creator)
-                    <div class="mb-3">
-                        <strong>Created By:</strong>
-                        <p class="mb-0">{{ $invoice->creator->name ?? 'Unknown' }}</p>
-                        <small class="text-muted">{{ $invoice->created_at ? $invoice->created_at->format('M d, Y H:i') : 'N/A' }}</small>
+                    <div class="row mb-3 pb-3 border-bottom">
+                        <div class="col-12">
+                            <label class="text-muted small d-block mb-1">Created By</label>
+                            <div class="fw-semibold mb-1">{{ $invoice->creator->name ?? 'Unknown' }}</div>
+                            <small class="text-muted"><i class="bx bx-time me-1"></i>{{ $invoice->created_at ? $invoice->created_at->format('M d, Y H:i') : 'N/A' }}</small>
+                        </div>
                     </div>
                     @endif
                     @if($invoice->updater)
-                    <div class="mb-3">
-                        <strong>Last Updated By:</strong>
-                        <p class="mb-0">{{ $invoice->updater->name ?? 'Unknown' }}</p>
-                        <small class="text-muted">{{ $invoice->updated_at ? $invoice->updated_at->format('M d, Y H:i') : 'N/A' }}</small>
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <label class="text-muted small d-block mb-1">Last Updated By</label>
+                            <div class="fw-semibold mb-1">{{ $invoice->updater->name ?? 'Unknown' }}</div>
+                            <small class="text-muted"><i class="bx bx-time me-1"></i>{{ $invoice->updated_at ? $invoice->updated_at->format('M d, Y H:i') : 'N/A' }}</small>
+                        </div>
                     </div>
                     @endif
                 </div>
@@ -519,40 +549,76 @@
                     <h5 class="mb-0"><i class="bx bx-calculator me-2"></i>Financial Summary</h5>
                 </div>
                 <div class="card-body">
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>Subtotal:</span>
-                        <strong>TZS {{ number_format($invoice->subtotal, 2) }}</strong>
+                    <div class="mb-3 pb-3 border-bottom">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-muted small">Subtotal</span>
+                            <strong>TZS {{ number_format($invoice->subtotal, 2) }}</strong>
+                        </div>
+                        @if($invoice->tax_amount > 0)
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-muted small">Tax</span>
+                            <strong>TZS {{ number_format($invoice->tax_amount, 2) }}</strong>
+                        </div>
+                        @endif
+                        @if($invoice->discount_amount > 0)
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted small">Discount</span>
+                            <strong class="text-success">-TZS {{ number_format($invoice->discount_amount, 2) }}</strong>
+                        </div>
+                        @endif
                     </div>
-                    @if($invoice->tax_amount > 0)
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>Tax Amount:</span>
-                        <strong>TZS {{ number_format($invoice->tax_amount, 2) }}</strong>
+                    <div class="mb-3 pb-3 border-bottom">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-semibold">Total</span>
+                            <strong class="fs-5">TZS {{ number_format($invoice->total_amount, 2) }}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted small">Paid</span>
+                            <strong class="text-success">TZS {{ number_format($invoice->paid_amount, 2) }}</strong>
+                        </div>
                     </div>
-                    @endif
-                    @if($invoice->discount_amount > 0)
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>Discount:</span>
-                        <strong class="text-success">-TZS {{ number_format($invoice->discount_amount, 2) }}</strong>
-                    </div>
-                    @endif
-                    <hr>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span><strong>Total Amount:</strong></span>
-                        <strong>TZS {{ number_format($invoice->total_amount, 2) }}</strong>
-                    </div>
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>Paid Amount:</span>
-                        <strong class="text-success">TZS {{ number_format($invoice->paid_amount, 2) }}</strong>
-                    </div>
-                    <hr>
-                    <div class="d-flex justify-content-between">
-                        <span><strong>Balance:</strong></span>
-                        <strong class="{{ $invoice->balance > 0 ? 'text-danger' : 'text-success' }}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fw-bold">Balance</span>
+                        <strong class="fs-5 {{ $invoice->balance > 0 ? 'text-danger' : 'text-success' }}">
                             TZS {{ number_format($invoice->balance, 2) }}
                         </strong>
                     </div>
                 </div>
             </div>
+
+            <!-- Payment Progress -->
+            @if($invoice->total_amount > 0)
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bx bx-trending-up me-2"></i>Payment Progress</h5>
+                </div>
+                <div class="card-body">
+                    @php
+                        $paymentPercentage = $invoice->total_amount > 0 ? ($invoice->paid_amount / $invoice->total_amount) * 100 : 0;
+                    @endphp
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small text-muted">Progress</span>
+                            <span class="small fw-semibold">{{ number_format($paymentPercentage, 1) }}%</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar {{ $paymentPercentage >= 100 ? 'bg-success' : ($paymentPercentage >= 50 ? 'bg-warning' : 'bg-danger') }}" 
+                                 role="progressbar" 
+                                 style="width: {{ min($paymentPercentage, 100) }}%" 
+                                 aria-valuenow="{{ $paymentPercentage }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center mt-2">
+                        <small class="text-muted">
+                            TZS {{ number_format($invoice->paid_amount, 2) }} of TZS {{ number_format($invoice->total_amount, 2) }}
+                        </small>
+                    </div>
+                </div>
+            </div>
+            @endif
 
             <!-- Notes and Terms -->
             @if($invoice->notes || $invoice->terms)

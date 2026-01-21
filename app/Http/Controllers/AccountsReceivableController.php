@@ -1668,7 +1668,8 @@ class AccountsReceivableController extends Controller
             // Calculate statistics
             $totalPayments = $invoicePayments->sum('amount');
             $paymentCount = $invoicePayments->count();
-            $daysOutstanding = $invoice->due_date ? now()->diffInDays($invoice->due_date, false) : 0;
+            // Calculate days outstanding as integer (no decimals)
+            $daysOutstanding = $invoice->due_date ? (int)now()->diffInDays($invoice->due_date, false) : 0;
 
             // Get activity logs if available
             $activityLogs = [];
