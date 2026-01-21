@@ -335,11 +335,11 @@ class MeetingController extends Controller
             }
             
             // Set submitted_by and submitted_at since meeting is automatically submitted for approval
-            if (Schema::hasColumn('meetings', 'submitted_by')) {
-                $meetingData['submitted_by'] = Auth::id();
-            }
-            if (Schema::hasColumn('meetings', 'submitted_at')) {
-                $meetingData['submitted_at'] = now();
+                if (Schema::hasColumn('meetings', 'submitted_by')) {
+                    $meetingData['submitted_by'] = Auth::id();
+                }
+                if (Schema::hasColumn('meetings', 'submitted_at')) {
+                    $meetingData['submitted_at'] = now();
             }
             
             // Create meeting
@@ -2010,10 +2010,8 @@ class MeetingController extends Controller
             try {
                 \App\Services\ActivityLogService::logAction(
                     'approved',
-                    'Meeting',
-                    $meetingId,
                     "Meeting '{$meetingTitle}' approved by {$user->name}",
-                    $user->id,
+                    null, // No model object since we're using DB queries
                     [
                         'meeting_id' => $meetingId,
                         'meeting_title' => $meetingTitle,
@@ -2148,10 +2146,8 @@ class MeetingController extends Controller
             try {
                 \App\Services\ActivityLogService::logAction(
                     'rejected',
-                    'Meeting',
-                    $meetingId,
                     "Meeting '{$meeting->title}' rejected by {$user->name}",
-                    $user->id,
+                    null, // No model object since we're using DB queries
                     [
                         'meeting_id' => $meetingId,
                         'meeting_title' => $meeting->title,
