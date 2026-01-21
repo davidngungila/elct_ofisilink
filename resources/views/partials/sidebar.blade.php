@@ -37,7 +37,7 @@
   <!-- Refund Requests - Available to ALL -->
   <li class="menu-item {{ request()->routeIs('refunds.*') ? 'active' : '' }}">
     <a href="{{ route('refunds.index') }}" class="menu-link">
-      <i class="menu-icon tf-icons bx bx-money-withdraw"></i>
+      <i class="menu-icon tf-icons bx bx-refresh"></i>
       <div data-i18n="Refund Requests" style="font-weight: bold;">Refund Requests</div>
     </a>
   </li>
