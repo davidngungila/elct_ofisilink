@@ -441,4 +441,58 @@ class NoticeController extends Controller
             'acknowledgments' => $acknowledgments,
         ]);
     }
+
+    /**
+     * Send notifications (Email and SMS) for a notice to all applicable users
+     */
+    protected function sendNoticeNotifications(Notice $notice)
+    {
+        // Get all users who should receive this notice
+        if ($notice->show_to_all) {
+            // Send to all active users
+            $users = User::where('is_active', true)->get();
+        } else {
+            // Send to users with specific roles
+            $roleIds = $notice->roles->pluck('id');
+            $users = User::whereHas('roles', function($q) use ($roleIds) {
+                $q->whereIn('roles.id', $roleIds);
+            })->where('is_active', true)->get();
+        }
+
+        if ($users->isEmpty()) {
+            return;
+        }
+
+        // Prepare notice message
+        $priorityLabel = ucfirst($notice->priority);
+        $message = "New {$priorityLabel} Notice: {$notice->title}. " . strip_tags(\Illuminate\Support\Str::limit($notice->content, 150));
+        $subject = "New {$priorityLabel} Notice: {$notice->title}";
+        $link = route('notices.show', $notice->id);
+
+        // Send notifications to all users
+        $userIds = $users->pluck('id')->toArray();
+        
+        // Use notify method which sends via all channels (In-App, Push, SMS, Email)
+        // Note: SMS and Email are sent by default unless skipped
+        $this->notificationService->notify(
+            $userIds,
+            $message,
+            $link,
+            $subject,
+            [
+                'notice_id' => $notice->id,
+                'notice_title' => $notice->title,
+                'notice_content' => $notice->content,
+                'notice_priority' => $notice->priority,
+                'is_html' => true, // Content may contain HTML
+            ]
+        );
+
+        Log::info('Notice notifications sent', [
+            'notice_id' => $notice->id,
+            'notice_title' => $notice->title,
+            'recipients_count' => count($userIds),
+            'show_to_all' => $notice->show_to_all,
+        ]);
+    }
 }
