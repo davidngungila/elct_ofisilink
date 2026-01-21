@@ -388,6 +388,39 @@ class MeetingController extends Controller
                 }
             }
 
+            // Handle meeting resolutions
+            if ($request->has('resolution_title')) {
+                $titles = is_array($request->resolution_title) ? $request->resolution_title : [];
+                $numbers = is_array($request->resolution_number) ? $request->resolution_number : [];
+                $descriptions = is_array($request->resolution_description) ? $request->resolution_description : [];
+                $resolutionTexts = is_array($request->resolution_text) ? $request->resolution_text : [];
+                $statuses = is_array($request->resolution_status) ? $request->resolution_status : [];
+                $proposedBys = is_array($request->resolution_proposed_by) ? $request->resolution_proposed_by : [];
+                $secondedBys = is_array($request->resolution_seconded_by) ? $request->resolution_seconded_by : [];
+
+                foreach ($titles as $i => $title) {
+                    if ($title && !empty($resolutionTexts[$i])) {
+                        // Auto-generate resolution number if not provided
+                        $resolutionNumber = !empty($numbers[$i]) ? $numbers[$i] : 'RES-' . str_pad($i + 1, 3, '0', STR_PAD_LEFT);
+                        
+                        DB::table('meeting_resolutions')->insert([
+                            'meeting_id' => $meetingId,
+                            'resolution_number' => $resolutionNumber,
+                            'title' => $title,
+                            'description' => $descriptions[$i] ?? null,
+                            'resolution_text' => $resolutionTexts[$i],
+                            'status' => $statuses[$i] ?? 'draft',
+                            'proposed_by' => !empty($proposedBys[$i]) ? $proposedBys[$i] : null,
+                            'seconded_by' => !empty($secondedBys[$i]) ? $secondedBys[$i] : null,
+                            'order_index' => $i + 1,
+                            'created_by' => Auth::id(),
+                            'created_at' => now(),
+                            'updated_at' => now()
+                        ]);
+                    }
+                }
+            }
+
             // Handle agenda items
             if ($request->has('agenda_title')) {
                 $titles = is_array($request->agenda_title) ? $request->agenda_title : [];

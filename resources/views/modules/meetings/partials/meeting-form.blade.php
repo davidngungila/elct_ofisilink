@@ -262,6 +262,26 @@
         </div>
     </div>
 
+    <!-- Meeting Resolutions Section -->
+    <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="card-title mb-0"><i class="bx bx-file-blank me-2"></i>Meeting Resolutions</h5>
+        </div>
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <small class="text-muted">
+                    <i class="bx bx-info-circle"></i> Prepare resolutions that will be discussed and voted on during the meeting
+                </small>
+                <button type="button" class="btn btn-sm btn-outline-warning" id="add-resolution-btn">
+                    <i class="bx bx-plus"></i> Add Resolution
+                </button>
+            </div>
+            <div id="resolutions-container">
+                <!-- Resolutions will be added here dynamically -->
+            </div>
+        </div>
+    </div>
+
     <!-- Submit Buttons -->
     <div class="card border-0 shadow-sm">
         <div class="card-body">
@@ -312,6 +332,69 @@
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Institution/Organization</label>
                     <input type="text" name="external_institution[]" class="form-control" placeholder="Enter institution or organization">
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+
+<!-- Resolution Template -->
+<template id="resolution-template">
+    <div class="resolution-item card mb-3" data-index="" style="border-left: 3px solid #ffc107;">
+        <div class="card-body" style="background-color: #fffbf0;">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="mb-0">Resolution #<span class="resolution-number"></span></h6>
+                <button type="button" class="btn btn-sm btn-danger remove-resolution">
+                    <i class="bx bx-trash"></i> Remove
+                </button>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Resolution Number</label>
+                    <input type="text" name="resolution_number[]" class="form-control" placeholder="e.g., RES-001 (auto-generated if empty)">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Status</label>
+                    <select name="resolution_status[]" class="form-select">
+                        <option value="draft">Draft</option>
+                        <option value="proposed">Proposed</option>
+                        <option value="approved">Approved</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="deferred">Deferred</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Resolution Title <span class="text-danger">*</span></label>
+                <input type="text" name="resolution_title[]" class="form-control" required placeholder="Enter resolution title">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Description</label>
+                <textarea name="resolution_description[]" class="form-control" rows="2" placeholder="Enter background/context for this resolution"></textarea>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Resolution Text <span class="text-danger">*</span></label>
+                <textarea name="resolution_text[]" class="form-control" rows="4" required placeholder="Enter the actual resolution statement that will be voted on"></textarea>
+                <small class="text-muted">This is the formal resolution statement that will appear in the resolutions document</small>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Proposed By</label>
+                    <select name="resolution_proposed_by[]" class="form-select select2-resolution-proposer">
+                        <option value="">Select Person</option>
+                        @foreach($users as $u)
+                            <option value="{{ $u->id }}">{{ $u->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Seconded By</label>
+                    <select name="resolution_seconded_by[]" class="form-select select2-resolution-seconder">
+                        <option value="">Select Person</option>
+                        @foreach($users as $u)
+                            <option value="{{ $u->id }}">{{ $u->name }}</option>
+                        @endforeach
+                    </select>
                 </div>
             </div>
         </div>
@@ -585,6 +668,53 @@ $(document).ready(function() {
     function updateAgendaItemNumbers() {
         $('#agenda-items-container .agenda-item').each(function(index) {
             $(this).find('.agenda-number').text(index + 1);
+        });
+    }
+
+    // Resolutions Management
+    let resolutionCount = 0;
+    
+    $('#add-resolution-btn').on('click', function() {
+        const template = $('#resolution-template').html();
+        const $newItem = $(template);
+        $newItem.attr('data-index', resolutionCount);
+        $newItem.find('.resolution-number').text(resolutionCount + 1);
+        
+        // Auto-generate resolution number if empty
+        const resolutionNumber = 'RES-' + String(resolutionCount + 1).padStart(3, '0');
+        $newItem.find('input[name="resolution_number[]"]').val(resolutionNumber);
+        
+        $('#resolutions-container').append($newItem);
+        
+        // Initialize Select2 for the new resolution proposer/seconder fields
+        $newItem.find('.select2-resolution-proposer, .select2-resolution-seconder').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Select person',
+            allowClear: true,
+            width: '100%'
+        });
+        
+        resolutionCount++;
+        updateResolutionNumbers();
+    });
+
+    $(document).on('click', '.remove-resolution', function() {
+        $(this).closest('.resolution-item').fadeOut(300, function() {
+            $(this).remove();
+            updateResolutionNumbers();
+        });
+    });
+
+    function updateResolutionNumbers() {
+        $('#resolutions-container .resolution-item').each(function(index) {
+            $(this).find('.resolution-number').text(index + 1);
+            // Update resolution number if it matches the pattern
+            const $numberInput = $(this).find('input[name="resolution_number[]"]');
+            const currentVal = $numberInput.val();
+            if (!currentVal || currentVal.match(/^RES-\d+$/)) {
+                const newNumber = 'RES-' + String(index + 1).padStart(3, '0');
+                $numberInput.val(newNumber);
+            }
         });
     }
 

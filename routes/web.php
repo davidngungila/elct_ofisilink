@@ -216,6 +216,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{meeting}/minutes/preview', [MeetingController::class, 'previewMinutesPage'])->name('minutes.preview');
         Route::get('/{meeting}/minutes/pdf', [MeetingController::class, 'generateMinutesPdf'])->name('minutes.pdf');
         
+        // Meeting Resolutions Routes
+        Route::get('/{meeting}/resolutions', [MeetingController::class, 'resolutions'])->name('resolutions');
+        Route::get('/{meeting}/resolutions/pdf', [MeetingController::class, 'generateResolutionsPdf'])->name('resolutions.pdf');
+        
         // AJAX endpoints
         Route::post('/ajax', [MeetingController::class, 'ajax'])->name('ajax');
         Route::get('/{meeting}/agendas', [MeetingController::class, 'agendas'])->name('agendas');
