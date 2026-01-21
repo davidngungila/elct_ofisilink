@@ -124,6 +124,73 @@
         </div>
     </div>
 
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm stat-card h-100" style="border-left: 4px solid #ffc107;">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="avatar avatar-lg me-3 bg-warning bg-opacity-10">
+                            <i class="bx bx-envelope fs-2 text-warning"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h6 class="text-muted mb-1">Total Accounts</h6>
+                            <h4 class="mb-0 fw-bold">{{ $stats['total'] }}</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm stat-card h-100" style="border-left: 4px solid #28a745;">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="avatar avatar-lg me-3 bg-success bg-opacity-10">
+                            <i class="bx bx-check-circle fs-2 text-success"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h6 class="text-muted mb-1">Active Accounts</h6>
+                            <h4 class="mb-0 fw-bold">{{ $stats['active'] }}</h4>
+                            <small class="text-muted">{{ $stats['live_mode'] }} in live mode</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm stat-card h-100" style="border-left: 4px solid #17a2b8;">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="avatar avatar-lg me-3 bg-info bg-opacity-10">
+                            <i class="bx bx-wifi fs-2 text-info"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h6 class="text-muted mb-1">Connected</h6>
+                            <h4 class="mb-0 fw-bold">{{ $stats['connected'] }}</h4>
+                            <small class="text-muted">{{ $stats['disconnected'] }} disconnected</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card border-0 shadow-sm stat-card h-100" style="border-left: 4px solid #6f42c1;">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="avatar avatar-lg me-3 bg-purple bg-opacity-10">
+                            <i class="bx bx-sync fs-2 text-purple"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h6 class="text-muted mb-1">Total Syncs</h6>
+                            <h4 class="mb-0 fw-bold">{{ number_format($stats['total_syncs']) }}</h4>
+                            <small class="text-muted">{{ $stats['total_failed_syncs'] }} failed</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Email Configurations Table -->
     <div class="row mb-4">
         <div class="col-12">
@@ -131,6 +198,7 @@
                 <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
                     <h5 class="mb-0 fw-bold">
                         <i class="bx bx-envelope me-2 text-warning"></i>Email Accounts
+                        <span class="badge bg-warning text-dark ms-2">{{ $stats['total'] }}</span>
                     </h5>
                     <div class="btn-group">
                         <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#addEmailModal" onclick="clearEmailForm()">
@@ -146,15 +214,16 @@
                         <table class="table table-hover mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Email Address</th>
-                                    <th>Protocol</th>
-                                    <th>Host:Port</th>
-                                    <th>Connection Status</th>
-                                    <th>Last Test</th>
-                                    <th>Last Sync</th>
-                                    <th>Sync Stats</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
+                                    <th style="width: 18%;">Email Address</th>
+                                    <th style="width: 10%;">Protocol</th>
+                                    <th style="width: 12%;">Host:Port</th>
+                                    <th style="width: 14%;">Connection Status</th>
+                                    <th style="width: 10%;">Last Test</th>
+                                    <th style="width: 10%;">Last Sync</th>
+                                    <th style="width: 12%;">Sync Stats</th>
+                                    <th style="width: 8%;">Incidents</th>
+                                    <th style="width: 6%;">Status</th>
+                                    <th style="width: 10%;">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -244,6 +313,21 @@
                                                 <i class="bx bx-x me-1"></i>{{ $config->failed_sync_count }} failed
                                             </small>
                                             @endif
+                                            @php
+                                                $syncSettings = $config->sync_settings ?? [];
+                                                $isLiveMode = isset($syncSettings['live_mode']) && $syncSettings['live_mode'] === true;
+                                            @endphp
+                                            @if($isLiveMode && $config->is_active)
+                                            <small class="text-info">
+                                                <i class="bx bx-sync bx-spin me-1"></i>Live Mode
+                                            </small>
+                                            @endif
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex flex-column align-items-center">
+                                            <span class="badge bg-primary">{{ $config->incident_count ?? 0 }}</span>
+                                            <small class="text-muted">Incidents</small>
                                         </div>
                                     </td>
                                     <td>
@@ -251,8 +335,7 @@
                                                 class="btn btn-sm {{ $config->is_active ? 'btn-success' : 'btn-secondary' }}"
                                                 onclick="toggleStatus({{ $config->id }})"
                                                 title="Click to {{ $config->is_active ? 'deactivate' : 'activate' }}">
-                                            <i class="bx bx-{{ $config->is_active ? 'check-circle' : 'x-circle' }} me-1"></i>
-                                            {{ $config->is_active ? 'Active' : 'Inactive' }}
+                                            <i class="bx bx-{{ $config->is_active ? 'check-circle' : 'x-circle' }}"></i>
                                         </button>
                                     </td>
                                     <td>
@@ -284,7 +367,7 @@
                                 </tr>
                                 @empty
                                 <tr>
-                                    <td colspan="9" class="text-center py-5">
+                                    <td colspan="10" class="text-center py-5">
                                         <div class="text-muted">
                                             <i class="bx bx-inbox fs-1"></i>
                                             <p class="mt-2 mb-0">No email configurations found.</p>

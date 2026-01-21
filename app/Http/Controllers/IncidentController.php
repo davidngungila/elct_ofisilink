@@ -738,10 +738,64 @@ class IncidentController extends Controller
 
         $configs = IncidentEmailConfig::orderBy('created_at', 'desc')->get();
         
-        // Load the full email accounts page with all modals and functionality
-        // For now, we'll use a view that includes all the original email-config functionality
-        // The email-accounts.blade.php will be updated to include all modals and scripts
-        return view('modules.incidents.email-accounts', compact('configs'));
+        // Calculate statistics
+        $stats = [
+            'total' => $configs->count(),
+            'active' => $configs->where('is_active', true)->count(),
+            'inactive' => $configs->where('is_active', false)->count(),
+            'connected' => $configs->where('connection_status', 'connected')->count(),
+            'disconnected' => $configs->where('connection_status', 'disconnected')->count(),
+            'failed' => $configs->where('connection_status', 'failed')->count(),
+            'unknown' => $configs->where('connection_status', 'unknown')->orWhereNull('connection_status')->count(),
+            'total_syncs' => $configs->sum('sync_count') ?? 0,
+            'total_failed_syncs' => $configs->sum('failed_sync_count') ?? 0,
+            'live_mode' => $configs->filter(function($config) {
+                $syncSettings = $config->sync_settings ?? [];
+                return isset($syncSettings['live_mode']) && $syncSettings['live_mode'] === true;
+            })->count(),
+        ];
+        
+        // Get incidents created from each email account
+        $incidentsByConfig = DB::table('incidents')
+            ->whereNotNull('email_config_id')
+            ->select('email_config_id', DB::raw('count(*) as incident_count'))
+            ->groupBy('email_config_id')
+            ->pluck('incident_count', 'email_config_id');
+        
+        // Get recent sync activity (last 7 days)
+        $recentSyncs = $configs->filter(function($config) {
+            return $config->last_sync_at && $config->last_sync_at->isAfter(now()->subDays(7));
+        })->count();
+        
+        // Auto-check connection status for all configs
+        foreach ($configs as $config) {
+            if ($config->is_active) {
+                // Check if last test was more than 5 minutes ago, then test again
+                if (!$config->last_connection_test_at || 
+                    $config->last_connection_test_at->diffInMinutes(now()) > 5) {
+                    try {
+                        $result = $this->testEmailConnection($config);
+                        $config->update([
+                            'connection_status' => $result['status'],
+                            'last_connection_test_at' => now(),
+                            'connection_error' => $result['error'] ?? null,
+                        ]);
+                    } catch (\Exception $e) {
+                        // Silent fail, will show in UI
+                    }
+                }
+            }
+        }
+        
+        // Refresh configs after testing
+        $configs = IncidentEmailConfig::orderBy('created_at', 'desc')->get();
+        
+        // Attach incident counts to each config
+        foreach ($configs as $config) {
+            $config->incident_count = $incidentsByConfig[$config->id] ?? 0;
+        }
+        
+        return view('modules.incidents.email-accounts', compact('configs', 'stats', 'recentSyncs'));
     }
 
     /**
