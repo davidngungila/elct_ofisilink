@@ -1983,7 +1983,10 @@ class MeetingController extends Controller
             
             $smsMessage = $customMessage ?: "Meeting Approved: {$meetingTitle} on {$meetingDate} at {$meetingTime}, Venue: {$venue}. Please confirm your attendance.";
             $emailSubject = "Meeting Approved: {$meetingTitle}";
-            $emailMessage = "The meeting '{$meetingTitle}' scheduled for {$meetingDate} at {$meetingTime} (Venue: {$venue}) has been approved.{$customMessage ? ' ' . $customMessage : ''}";
+            $emailMessage = "The meeting '{$meetingTitle}' scheduled for {$meetingDate} at {$meetingTime} (Venue: {$venue}) has been approved.";
+            if ($customMessage) {
+                $emailMessage .= ' ' . $customMessage;
+            }
             
             foreach ($participants as $participant) {
                 if ($participant->id) {
