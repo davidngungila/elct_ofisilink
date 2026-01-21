@@ -221,18 +221,32 @@ class CashBankController extends Controller
             // Check if account has transactions (optional - you may want to prevent deletion if there are transactions)
             // For now, we'll allow deletion
 
+            // Store account data before deletion for logging
             $bankAccountData = [
                 'bank_name' => $bankAccount->bank_name,
                 'account_number' => $bankAccount->account_number,
                 'account_name' => $bankAccount->account_name,
             ];
 
+            // Get model data as array before deletion
+            $modelData = $bankAccount->toArray();
+
             $bankAccount->delete();
 
             Log::info('Bank account deleted', ['bank_account_id' => $id, 'user_id' => $user->id]);
 
-            // Log activity
-            ActivityLogService::logDeleted('BankAccount', "Deleted bank account: {$bankAccountData['bank_name']} - {$bankAccountData['account_number']}", $bankAccountData);
+            // Log activity - use logAction instead since model is already deleted
+            ActivityLogService::logAction(
+                'deleted',
+                "Deleted bank account: {$bankAccountData['bank_name']} - {$bankAccountData['account_number']}",
+                null,
+                array_merge([
+                    'deleted_data' => $modelData,
+                    'bank_name' => $bankAccountData['bank_name'],
+                    'account_number' => $bankAccountData['account_number'],
+                    'account_name' => $bankAccountData['account_name'],
+                ], ['model_type' => 'BankAccount', 'model_id' => $id])
+            );
 
             return response()->json([
                 'success' => true,
