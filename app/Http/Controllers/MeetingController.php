@@ -1369,6 +1369,10 @@ class MeetingController extends Controller
                     return $this->getDashboardStats($request, $user);
                 case 'get_categories':
                     return $this->getCategories($request, $user);
+                case 'create_category':
+                    return $this->storeCategory($request);
+                case 'update_category':
+                    return $this->updateCategory($request, $request->input('category_id'));
                 case 'save_minutes_section':
                     return $this->saveMinutesSection($request, $user);
                 case 'save_agenda_minutes':
@@ -1602,8 +1606,102 @@ class MeetingController extends Controller
     }
     public function agendas($id) { return response()->json([]); }
     public function previousActions($id) { return response()->json([]); }
-    public function storeCategory(Request $request) { return redirect()->back(); }
-    public function updateCategory(Request $request, $id) { return redirect()->back(); }
+    
+    /**
+     * Store a newly created meeting category
+     */
+    public function storeCategory(Request $request)
+    {
+        $user = Auth::user();
+        
+        // Check permissions
+        $canManageMeetings = $user->hasPermission('manage_meetings') || 
+                            $user->hasAnyRole(['System Admin', 'admin', 'super_admin', 'hod', 'ceo', 'General Manager', 'HR Officer']);
+        
+        if (!$canManageMeetings) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to create categories.'
+            ], 403);
+        }
+        
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string|max:1000',
+            'is_active' => 'nullable|boolean',
+        ]);
+        
+        try {
+            $category = MeetingCategory::create([
+                'name' => $validated['name'],
+                'description' => $validated['description'] ?? null,
+                'is_active' => $request->has('is_active') ? (bool)$request->input('is_active') : true,
+                'created_by' => $user->id,
+                'updated_by' => $user->id,
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Category created successfully.',
+                'category' => $category
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to create meeting category: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create category: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Update an existing meeting category
+     */
+    public function updateCategory(Request $request, $id)
+    {
+        $user = Auth::user();
+        
+        // Check permissions
+        $canManageMeetings = $user->hasPermission('manage_meetings') || 
+                            $user->hasAnyRole(['System Admin', 'admin', 'super_admin', 'hod', 'ceo', 'General Manager', 'HR Officer']);
+        
+        if (!$canManageMeetings) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to update categories.'
+            ], 403);
+        }
+        
+        $category = MeetingCategory::findOrFail($id);
+        
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string|max:1000',
+            'is_active' => 'nullable|boolean',
+        ]);
+        
+        try {
+            $category->update([
+                'name' => $validated['name'],
+                'description' => $validated['description'] ?? null,
+                'is_active' => $request->has('is_active') ? (bool)$request->input('is_active') : $category->is_active,
+                'updated_by' => $user->id,
+            ]);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Category updated successfully.',
+                'category' => $category
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to update meeting category: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update category: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
     public function submitForApproval($id) { return redirect()->back(); }
     public function approve($id) { return redirect()->back(); }
     public function reject($id) { return redirect()->back(); }
