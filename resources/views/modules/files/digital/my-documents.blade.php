@@ -186,26 +186,24 @@
                                         <td>{{ number_format($document['file_size'] / 1024, 2) }} KB</td>
                                         <td>
                                             <div class="d-flex gap-1">
-                                                @if($document['type'] === 'digital_file')
-                                                    <button class="btn btn-sm btn-success" onclick="previewDocument({{ $document['id'] }}, '{{ addslashes($document['document_name']) }}', '{{ $document['type'] }}')" title="Preview">
-                                                        <i class="bx bx-show"></i>
-                                                    </button>
-                                                    <a href="{{ Storage::url($document['file_path']) }}" download class="btn btn-sm btn-outline-success" title="Download">
-                                                        <i class="bx bx-download"></i>
-                                                    </a>
-                                                @else
-                                                    @php
+                                                @php
+                                                    if ($document['type'] === 'digital_file') {
+                                                        // Use preview route for digital files (supports access control)
+                                                        $previewUrl = route('modules.files.digital.preview', $document['id']);
+                                                        $downloadUrl = Storage::url($document['file_path']);
+                                                    } else {
                                                         // Employee documents are in storage/documents/
-                                                        // Use file_url if available, otherwise construct from file_path
                                                         $docUrl = $document['file_url'] ?? asset('storage/documents/' . $document['file_path']);
-                                                    @endphp
-                                                    <a href="{{ $docUrl }}" target="_blank" class="btn btn-sm btn-success" title="View">
-                                                        <i class="bx bx-show"></i>
-                                                    </a>
-                                                    <a href="{{ $docUrl }}" download class="btn btn-sm btn-outline-success" title="Download">
-                                                        <i class="bx bx-download"></i>
-                                                    </a>
-                                                @endif
+                                                        $previewUrl = $docUrl;
+                                                        $downloadUrl = $docUrl;
+                                                    }
+                                                @endphp
+                                                <button class="btn btn-sm btn-success" onclick="previewDocument('{{ $previewUrl }}', '{{ addslashes($document['document_name']) }}', '{{ $document['type'] }}', '{{ $downloadUrl }}')" title="Preview">
+                                                    <i class="bx bx-show"></i>
+                                                </button>
+                                                <a href="{{ $downloadUrl }}" download class="btn btn-sm btn-outline-success" title="Download">
+                                                    <i class="bx bx-download"></i>
+                                                </a>
                                             </div>
                                         </td>
                                     </tr>
@@ -592,12 +590,7 @@ $('#uploadDocumentForm').on('submit', function(e) {
 });
 
 // Preview document
-function previewDocument(fileId, fileName, docType) {
-    if (docType === 'employee_document') {
-        // For employee documents, just open in new tab
-        return;
-    }
-    
+function previewDocument(fileUrl, fileName, docType, downloadUrl) {
     const modal = new bootstrap.Modal(document.getElementById('previewModal'));
     const title = document.getElementById('previewModalTitle');
     const content = document.getElementById('previewModalContent');
@@ -607,40 +600,18 @@ function previewDocument(fileId, fileName, docType) {
     content.html('<div class="text-center py-5"><div class="spinner-border text-success"></div></div>');
     modal.show();
     
-    const previewUrl = '{{ route("modules.files.digital.preview", ":id") }}'.replace(':id', fileId);
-    
-    // Fetch file details to get download URL
-    $.ajax({
-        url: '{{ route("modules.files.digital.ajax") }}',
-        type: 'POST',
-        data: {
-            action: 'get_file_details',
-            file_id: fileId,
-            _token: token
-        },
-        success: function(response) {
-            if (response.success && response.file && response.file.download_url) {
-                downloadLink.href = response.file.download_url;
-            } else if (response.success && response.file && response.file.file_path) {
-                downloadLink.href = '{{ Storage::url("") }}' + response.file.file_path;
-            } else {
-                downloadLink.href = '{{ route("modules.files.digital.ajax") }}?action=download_file&file_id=' + fileId;
-            }
-        },
-        error: function() {
-            downloadLink.href = '{{ route("modules.files.digital.ajax") }}?action=download_file&file_id=' + fileId;
-        }
-    });
-    
+    // Set download link
+    downloadLink.href = downloadUrl || fileUrl;
     downloadLink.download = fileName;
     
     // Determine file type for preview
     const ext = fileName.split('.').pop().toLowerCase();
-    const fileUrl = previewUrl;
     
     if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext)) {
+        // Image preview
         content.html(`<img src="${fileUrl}" class="img-fluid" alt="${fileName}" style="max-height: 70vh; width: auto; display: block; margin: 0 auto;">`);
     } else if (ext === 'pdf') {
+        // PDF preview using iframe
         content.html(`<iframe src="${fileUrl}" style="width: 100%; height: 70vh; border: none;"></iframe>`);
     } else {
         // For other file types, show download option
@@ -649,7 +620,7 @@ function previewDocument(fileId, fileName, docType) {
                 <i class="bx bx-file fs-1 text-muted mb-3"></i>
                 <h5 class="text-muted">Preview Not Available</h5>
                 <p class="text-muted">Preview is not available for this file type. Please download to view.</p>
-                <a href="#" id="fallbackDownloadLink" class="btn btn-success mt-3" onclick="event.preventDefault(); window.open('{{ route("modules.files.digital.ajax") }}?action=download_file&file_id=' + ${fileId} + '&_token=' + '${token}', '_blank');">
+                <a href="${downloadUrl || fileUrl}" download="${fileName}" class="btn btn-success mt-3">
                     <i class="bx bx-download me-1"></i>Download Document
                 </a>
             </div>
