@@ -26,6 +26,16 @@
         background-color: #dc3545;
         color: #fff;
     }
+    /* Ensure SweetAlert2 appears on top of everything */
+    .swal2-container {
+        z-index: 99999 !important;
+    }
+    .swal2-popup {
+        z-index: 99999 !important;
+    }
+    .swal2-backdrop-show {
+        z-index: 99998 !important;
+    }
 </style>
 @endpush
 
@@ -454,7 +464,26 @@ $('#createFolderForm').on('submit', function(e) {
                 Swal.fire({
                     icon: 'success',
                     title: 'Success!',
-                    text: response.message || 'Folder created successfully'
+                    text: response.message || 'Folder created successfully',
+                    showConfirmButton: true,
+                    confirmButtonText: 'OK',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    customClass: {
+                        container: 'swal2-container-high-zindex',
+                        popup: 'swal2-popup-high-zindex'
+                    },
+                    didOpen: () => {
+                        // Ensure it's on top of all elements
+                        const swalContainer = document.querySelector('.swal2-container');
+                        if (swalContainer) {
+                            swalContainer.style.zIndex = '99999';
+                        }
+                        const swalPopup = document.querySelector('.swal2-popup');
+                        if (swalPopup) {
+                            swalPopup.style.zIndex = '100000';
+                        }
+                    }
                 }).then(() => {
                     location.reload();
                 });
@@ -462,7 +491,17 @@ $('#createFolderForm').on('submit', function(e) {
                 Swal.fire({
                     icon: 'error',
                     title: 'Error',
-                    text: response.message || 'Failed to create folder'
+                    text: response.message || 'Failed to create folder',
+                    customClass: {
+                        container: 'swal2-container-high-zindex',
+                        popup: 'swal2-popup-high-zindex'
+                    },
+                    didOpen: () => {
+                        const swalContainer = document.querySelector('.swal2-container');
+                        if (swalContainer) {
+                            swalContainer.style.zIndex = '99999';
+                        }
+                    }
                 });
                 submitBtn.prop('disabled', false).html(originalHtml);
             }
@@ -472,7 +511,17 @@ $('#createFolderForm').on('submit', function(e) {
             Swal.fire({
                 icon: 'error',
                 title: 'Error',
-                text: response?.message || 'An error occurred while creating folder'
+                text: response?.message || 'An error occurred while creating folder',
+                customClass: {
+                    container: 'swal2-container-high-zindex',
+                    popup: 'swal2-popup-high-zindex'
+                },
+                didOpen: () => {
+                    const swalContainer = document.querySelector('.swal2-container');
+                    if (swalContainer) {
+                        swalContainer.style.zIndex = '99999';
+                    }
+                }
             });
             submitBtn.prop('disabled', false).html(originalHtml);
         }
@@ -564,7 +613,26 @@ $('#uploadDocumentForm').on('submit', function(e) {
                 Swal.fire({
                     icon: 'success',
                     title: 'Success!',
-                    text: response.message || 'Document uploaded successfully'
+                    text: response.message || 'Document uploaded successfully',
+                    showConfirmButton: true,
+                    confirmButtonText: 'OK',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    customClass: {
+                        container: 'swal2-container-high-zindex',
+                        popup: 'swal2-popup-high-zindex'
+                    },
+                    didOpen: () => {
+                        // Ensure it's on top of all elements
+                        const swalContainer = document.querySelector('.swal2-container');
+                        if (swalContainer) {
+                            swalContainer.style.zIndex = '99999';
+                        }
+                        const swalPopup = document.querySelector('.swal2-popup');
+                        if (swalPopup) {
+                            swalPopup.style.zIndex = '100000';
+                        }
+                    }
                 }).then(() => {
                     location.reload();
                 });
@@ -572,7 +640,17 @@ $('#uploadDocumentForm').on('submit', function(e) {
                 Swal.fire({
                     icon: 'error',
                     title: 'Upload Failed',
-                    text: response.message || 'Failed to upload document'
+                    text: response.message || 'Failed to upload document',
+                    customClass: {
+                        container: 'swal2-container-high-zindex',
+                        popup: 'swal2-popup-high-zindex'
+                    },
+                    didOpen: () => {
+                        const swalContainer = document.querySelector('.swal2-container');
+                        if (swalContainer) {
+                            swalContainer.style.zIndex = '99999';
+                        }
+                    }
                 });
                 submitBtn.prop('disabled', false).html(originalHtml);
             }
@@ -582,7 +660,17 @@ $('#uploadDocumentForm').on('submit', function(e) {
             Swal.fire({
                 icon: 'error',
                 title: 'Error',
-                text: response?.message || 'An error occurred while uploading'
+                text: response?.message || 'An error occurred while uploading',
+                customClass: {
+                    container: 'swal2-container-high-zindex',
+                    popup: 'swal2-popup-high-zindex'
+                },
+                didOpen: () => {
+                    const swalContainer = document.querySelector('.swal2-container');
+                    if (swalContainer) {
+                        swalContainer.style.zIndex = '99999';
+                    }
+                }
             });
             submitBtn.prop('disabled', false).html(originalHtml);
         }
