@@ -194,10 +194,15 @@
                                                         <i class="bx bx-download"></i>
                                                     </a>
                                                 @else
-                                                    <a href="{{ Storage::url($document['file_path']) }}" target="_blank" class="btn btn-sm btn-success" title="View">
+                                                    @php
+                                                        // Employee documents are in storage/documents/
+                                                        // Use file_url if available, otherwise construct from file_path
+                                                        $docUrl = $document['file_url'] ?? asset('storage/documents/' . $document['file_path']);
+                                                    @endphp
+                                                    <a href="{{ $docUrl }}" target="_blank" class="btn btn-sm btn-success" title="View">
                                                         <i class="bx bx-show"></i>
                                                     </a>
-                                                    <a href="{{ Storage::url($document['file_path']) }}" download class="btn btn-sm btn-outline-success" title="Download">
+                                                    <a href="{{ $docUrl }}" download class="btn btn-sm btn-outline-success" title="Download">
                                                         <i class="bx bx-download"></i>
                                                     </a>
                                                 @endif

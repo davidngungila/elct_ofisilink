@@ -3217,6 +3217,24 @@ class DigitalFileController extends Controller
         
         // Add employee documents
         foreach ($employeeDocuments as $doc) {
+            // Handle file path - employee documents are stored in storage/documents/
+            // The file_path in database might be just filename or full path
+            $filePath = $doc->file_path;
+            $fileUrl = '';
+            
+            if ($filePath) {
+                // If file_path starts with 'public/documents/', remove 'public/' for URL
+                if (str_starts_with($filePath, 'public/documents/')) {
+                    $fileUrl = asset('storage/' . str_replace('public/', '', $filePath));
+                } elseif (str_starts_with($filePath, 'documents/')) {
+                    // Already has documents/ prefix
+                    $fileUrl = asset('storage/' . $filePath);
+                } else {
+                    // Just filename, prepend documents/
+                    $fileUrl = asset('storage/documents/' . $filePath);
+                }
+            }
+            
             $allDocuments->push([
                 'id' => $doc->id,
                 'type' => 'employee_document',
@@ -3227,7 +3245,8 @@ class DigitalFileController extends Controller
                 'expiry_date' => $doc->expiry_date,
                 'issued_by' => $doc->issued_by ?? ($doc->uploader->name ?? 'System'),
                 'file_size' => $doc->file_size,
-                'file_path' => $doc->file_path,
+                'file_path' => $filePath,
+                'file_url' => $fileUrl,
                 'folder_name' => 'Employee Documents',
                 'created_at' => $doc->created_at,
             ]);
