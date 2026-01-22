@@ -1250,6 +1250,61 @@ class AssessmentController extends Controller
     }
 
     /**
+     * Show Activities & Progress Reports page
+     */
+    public function activitiesReportsPage(Assessment $assessment)
+    {
+        $user = Auth::user();
+        $isHR = $user->hasRole('HR Officer');
+        $isHOD = $user->hasRole('HOD');
+        $isCEO = $user->hasRole('CEO');
+        $isAdmin = $user->hasRole('System Admin');
+        $isManager = $isHR || $isHOD || $isCEO || $isAdmin;
+        
+        // Authorization check
+        $isOwn = $assessment->employee_id == $user->id;
+        if (!$isManager && !$isOwn) {
+            abort(403);
+        }
+        
+        if ($isHOD && !$isAdmin && !$isHR) {
+            if (($assessment->employee->primary_department_id ?? null) !== $user->primary_department_id) {
+                abort(403);
+            }
+        }
+        
+        // Load relationships with proper ordering
+        $assessment->load([
+            'employee.primaryDepartment',
+            'hodApprover',
+            'activities' => function($q) {
+                $q->orderBy('created_at', 'asc');
+            },
+            'activities.progressReports' => function($q) {
+                $q->with('hodApprover')
+                  ->orderBy('report_date', 'desc')
+                  ->orderBy('created_at', 'desc');
+            }
+        ]);
+        
+        // Calculate performance metrics
+        $currentYear = date('Y');
+        $performanceData = $this->calculatePerformanceMetrics($assessment, $currentYear);
+        
+        return view('modules.hr.assessments-activities-reports', compact(
+            'assessment',
+            'isHR',
+            'isHOD',
+            'isCEO',
+            'isAdmin',
+            'isManager',
+            'isOwn',
+            'performanceData',
+            'currentYear'
+        ));
+    }
+
+    /**
      * Show assessment details page
      */
     public function show(Assessment $assessment)

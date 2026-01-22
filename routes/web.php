@@ -567,6 +567,7 @@ Route::prefix('assessments')->name('assessments.')->group(function () {
     Route::post('/activities/{activity}/progress-report', [App\Http\Controllers\AssessmentController::class, 'submitProgressReport'])->name('progress-report');
     Route::post('/progress-reports/{report}/approve', [App\Http\Controllers\AssessmentController::class, 'approveProgressReport'])->name('progress-approve')->middleware('role:HOD,System Admin');
     Route::get('/{assessment}/details', [App\Http\Controllers\AssessmentController::class, 'getAssessmentDetails'])->name('details');
+    Route::get('/{assessment}/activities-reports', [App\Http\Controllers\AssessmentController::class, 'activitiesReportsPage'])->name('activities-reports');
     Route::get('/performance/{employeeId?}', [App\Http\Controllers\AssessmentController::class, 'calculatePerformance'])->name('performance');
     Route::get('/export/{employeeId}', [App\Http\Controllers\AssessmentController::class, 'exportPerformance'])->name('export');
     Route::get('/comprehensive-data', [App\Http\Controllers\AssessmentController::class, 'getComprehensiveData'])->name('comprehensive-data')->middleware('role:System Admin,HR Officer');

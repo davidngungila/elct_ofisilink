@@ -133,6 +133,13 @@
             </div>
 
             <!-- Activities and Reports - Advanced Design -->
+            <div class="mb-3">
+                <a href="{{ route('assessments.activities-reports', $assessment->id) }}" class="btn btn-primary">
+                    <i class="bx bx-list-ul me-2"></i>View Full Activities & Progress Reports Page
+                </a>
+            </div>
+            
+            <!-- Activities and Reports - Advanced Design -->
             <div class="card border-0 shadow-lg mb-4" style="border-radius: 15px; overflow: hidden;">
                 <div class="card-header bg-gradient-primary text-white" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
                     <div class="d-flex justify-content-between align-items-center">
