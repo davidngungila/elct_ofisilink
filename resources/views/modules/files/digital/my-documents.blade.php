@@ -134,6 +134,66 @@
         </div>
     </div>
 
+    <!-- My Folders Section -->
+    @if($myFolders->count() > 0)
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="bx bx-folder me-2 text-success"></i>My Folders
+                        <span class="badge bg-success ms-2">{{ $myFolders->count() }}</span>
+                    </h5>
+                    <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#createFolderModal">
+                        <i class="bx bx-folder-plus me-1"></i>Create Folder
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        @foreach($myFolders as $folder)
+                        <div class="col-lg-3 col-md-4 col-sm-6">
+                            <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #11998e;">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-start mb-2">
+                                        <div class="avatar avatar-lg me-3 bg-success bg-opacity-10">
+                                            <i class="bx bx-folder fs-2 text-success"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1 fw-bold" title="{{ $folder->name }}">
+                                                {{ \Illuminate\Support\Str::limit($folder->name, 20) }}
+                                            </h6>
+                                            @if($folder->description)
+                                                <small class="text-muted d-block">
+                                                    {{ \Illuminate\Support\Str::limit($folder->description, 30) }}
+                                                </small>
+                                            @endif
+                                            <small class="text-muted d-block">
+                                                <i class="bx bx-file me-1"></i>{{ $folder->files_count ?? 0 }} files
+                                            </small>
+                                            <small class="text-muted d-block">
+                                                <i class="bx bx-calendar me-1"></i>{{ $folder->created_at->format('M d, Y') }}
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <div class="d-flex gap-1 mt-2">
+                                        <a href="{{ route('modules.files.digital.folder.detail', $folder->id) }}" class="btn btn-sm btn-success flex-fill">
+                                            <i class="bx bx-show me-1"></i>View
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-success" onclick="uploadToFolder({{ $folder->id }}, '{{ addslashes($folder->name) }}')" title="Upload to this folder">
+                                            <i class="bx bx-upload"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
     <!-- Documents Table -->
     <div class="row">
         <div class="col-12">
@@ -317,14 +377,16 @@
                 @csrf
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Select Folder <span class="text-danger">*</span></label>
-                        <select class="form-select form-select-lg" name="folder_id" id="uploadFolderId" required>
-                            <option value="">Choose a folder...</option>
+                        <label class="form-label fw-bold">Select Folder <span class="text-muted">(Optional)</span></label>
+                        <select class="form-select form-select-lg" name="folder_id" id="uploadFolderId">
+                            <option value="">-- Select Folder (Optional) --</option>
+                            @if($myFolders->count() > 0)
                             <optgroup label="My Folders">
                                 @foreach($myFolders as $folder)
-                                    <option value="{{ $folder->id }}">{{ $folder->name }}</option>
+                                    <option value="{{ $folder->id }}">{{ $folder->name }} ({{ $folder->files_count ?? 0 }} files)</option>
                                 @endforeach
                             </optgroup>
+                            @endif
                             @if($availableFolders->count() > 0)
                             <optgroup label="Available Folders">
                                 @foreach($availableFolders as $folder)
@@ -337,7 +399,7 @@
                             </optgroup>
                             @endif
                         </select>
-                        <small class="text-muted">Select the folder where you want to upload your document</small>
+                        <small class="text-muted">Select a folder to organize your document (optional)</small>
                     </div>
                     
                     <div class="mb-3">
@@ -442,6 +504,30 @@ $('#searchDocuments').on('input', function() {
         }
     });
 });
+
+// Upload to specific folder
+function uploadToFolder(folderId, folderName) {
+    // Set the folder in the upload modal
+    $('#uploadFolderId').val(folderId);
+    // Show the upload modal
+    const uploadModal = new bootstrap.Modal(document.getElementById('uploadDocumentModal'));
+    uploadModal.show();
+    
+    // Show a brief message that folder is selected
+    Swal.fire({
+        icon: 'info',
+        title: 'Folder Selected',
+        text: `Files will be uploaded to: ${folderName}`,
+        timer: 2000,
+        showConfirmButton: false,
+        toast: true,
+        position: 'top-end',
+        customClass: {
+            container: 'swal2-container-high-zindex',
+            popup: 'swal2-popup-high-zindex'
+        }
+    });
+}
 
 // Create Folder Form
 $('#createFolderForm').on('submit', function(e) {

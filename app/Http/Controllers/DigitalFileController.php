@@ -3293,8 +3293,9 @@ class DigitalFileController extends Controller
             ->orderBy('name')
             ->get();
         
-        // Get user's own folders (folders they created)
+        // Get user's own folders (folders they created) with file counts
         $myFolders = FileFolder::where('created_by', $user->id)
+            ->withCount('files')
             ->orderBy('name')
             ->get();
         
