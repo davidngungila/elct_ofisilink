@@ -492,9 +492,12 @@ class DigitalFileController extends Controller
         
         $folder = FileFolder::findOrFail($request->folder_id);
         
+        // Check if user is the folder creator
+        $isFolderCreator = $folder->created_by === $user->id;
+        
         // Check if user has access to upload to this folder
-        // Staff can only upload to public folders or their department folders
-        if (!$canManageFiles) {
+        // Staff can upload to: public folders, their department folders, or folders they created
+        if (!$canManageFiles && !$isFolderCreator) {
             $userDeptId = $user->department_id ?? null;
             $hasFolderAccess = false;
             
@@ -608,6 +611,8 @@ class DigitalFileController extends Controller
                       $w->where('access_level', 'department')
                         ->where('department_id', $currentDeptId);
                   })
+                  // Include folders created by the user
+                  ->orWhere('created_by', $user->id)
                   // Include folders with files assigned to this user
                   ->orWhere(function($w2) use ($user) {
                       $w2->where('access_level', 'private')
@@ -899,22 +904,43 @@ class DigitalFileController extends Controller
     
     private function handleAddUserAssignment(Request $request)
     {
+        $user = Auth::user();
+        $userRoles = $user->roles()->pluck('name')->toArray();
+        
         $request->validate([
             'file_id' => 'required|integer|exists:files,id',
             'user_id' => 'required|integer|exists:users,id',
             'permission_level' => 'required|in:view,edit,manage'
         ]);
         
+        $file = FileModel::with('folder')->findOrFail($request->file_id);
+        
+        // Check if user owns the file, is folder creator, or has permission
+        $isFileOwner = $file->uploaded_by === $user->id;
+        $isFolderCreator = $file->folder && $file->folder->created_by === $user->id;
+        $canAssign = in_array('System Admin', $userRoles) || 
+                    in_array('HR Officer', $userRoles) || 
+                    in_array('HOD', $userRoles) || 
+                    in_array('General Manager', $userRoles) ||
+                    in_array('Record Officer', $userRoles);
+        
+        if (!$isFileOwner && !$isFolderCreator && !$canAssign) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to assign this file.'
+            ], 403);
+        }
+        
         FileUserAssignment::updateOrCreate(
             ['file_id' => $request->file_id, 'user_id' => $request->user_id],
             [
-                'assigned_by' => Auth::id(),
+                'assigned_by' => $user->id,
                 'permission_level' => $request->permission_level,
                 'assigned_at' => now()
             ]
         );
         
-        $this->logFileActivity($request->file_id, 'assignment_updated', Auth::id(), [
+        $this->logFileActivity($request->file_id, 'assignment_updated', $user->id, [
             'added_user' => $request->user_id
         ]);
         
@@ -926,12 +952,32 @@ class DigitalFileController extends Controller
     
     private function handleRemoveUserAssignment(Request $request)
     {
+        $user = Auth::user();
+        $userRoles = $user->roles()->pluck('name')->toArray();
+        
         $assignmentId = $request->input('assignment_id');
         
-        $assignment = FileUserAssignment::findOrFail($assignmentId);
+        $assignment = FileUserAssignment::with('file.folder')->findOrFail($assignmentId);
+        $file = $assignment->file;
         $fileId = $assignment->file_id;
         
-        $this->logFileActivity($fileId, 'assignment_updated', Auth::id(), [
+        // Check if user owns the file, is folder creator, or has permission
+        $isFileOwner = $file && $file->uploaded_by === $user->id;
+        $isFolderCreator = $file && $file->folder && $file->folder->created_by === $user->id;
+        $canAssign = in_array('System Admin', $userRoles) || 
+                    in_array('HR Officer', $userRoles) || 
+                    in_array('HOD', $userRoles) || 
+                    in_array('General Manager', $userRoles) ||
+                    in_array('Record Officer', $userRoles);
+        
+        if (!$isFileOwner && !$isFolderCreator && !$canAssign) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to remove this assignment.'
+            ], 403);
+        }
+        
+        $this->logFileActivity($fileId, 'assignment_updated', $user->id, [
             'removed_user' => $assignment->user_id
         ]);
         
@@ -956,10 +1002,13 @@ class DigitalFileController extends Controller
             'user_ids.*' => 'integer|exists:users,id'
         ]);
         
-        $file = FileModel::findOrFail($request->file_id);
+        $file = FileModel::with('folder')->findOrFail($request->file_id);
         
-        // Check if user owns the file or has permission
-        if ($file->uploaded_by !== $user->id) {
+        // Check if user owns the file, is folder creator, or has permission
+        $isFileOwner = $file->uploaded_by === $user->id;
+        $isFolderCreator = $file->folder && $file->folder->created_by === $user->id;
+        
+        if (!$isFileOwner && !$isFolderCreator) {
             $userRoles = $user->roles()->pluck('name')->toArray();
             $canAssign = in_array('System Admin', $userRoles) || 
                         in_array('HR Officer', $userRoles) || 
@@ -2316,14 +2365,6 @@ class DigitalFileController extends Controller
         $user = Auth::user();
         $userRoles = $user->roles()->pluck('name')->toArray();
         
-        if (!in_array('System Admin', $userRoles) && 
-            !in_array('HR Officer', $userRoles) && 
-            !in_array('HOD', $userRoles) && 
-            !in_array('General Manager', $userRoles) &&
-            !in_array('Record Officer', $userRoles)) {
-            throw new \Exception("Authorization Failed: You cannot update folders.");
-        }
-        
         $request->validate([
             'folder_id' => 'required|integer|exists:file_folders,id',
             'folder_name' => 'required|string|max:255',
@@ -2334,6 +2375,19 @@ class DigitalFileController extends Controller
         ]);
         
         $folder = FileFolder::findOrFail($request->folder_id);
+        
+        // Check if user is the folder creator
+        $isFolderCreator = $folder->created_by === $user->id;
+        
+        // Allow update if user is folder creator or has admin roles
+        if (!$isFolderCreator && 
+            !in_array('System Admin', $userRoles) && 
+            !in_array('HR Officer', $userRoles) && 
+            !in_array('HOD', $userRoles) && 
+            !in_array('General Manager', $userRoles) &&
+            !in_array('Record Officer', $userRoles)) {
+            throw new \Exception("Authorization Failed: You cannot update folders.");
+        }
         
         // Check if name already exists in same parent
         $existingFolder = FileFolder::where('name', $request->folder_name)
@@ -2380,19 +2434,24 @@ class DigitalFileController extends Controller
         $user = Auth::user();
         $userRoles = $user->roles()->pluck('name')->toArray();
         
-        if (!in_array('System Admin', $userRoles) && 
+        $request->validate([
+            'folder_id' => 'required|integer|exists:file_folders,id'
+        ]);
+        
+        $folder = FileFolder::with('subfolders', 'files')->findOrFail($request->folder_id);
+        
+        // Check if user is the folder creator
+        $isFolderCreator = $folder->created_by === $user->id;
+        
+        // Allow deletion if user is folder creator or has admin roles
+        if (!$isFolderCreator && 
+            !in_array('System Admin', $userRoles) && 
             !in_array('HR Officer', $userRoles) && 
             !in_array('HOD', $userRoles) && 
             !in_array('General Manager', $userRoles) &&
             !in_array('Record Officer', $userRoles)) {
             throw new \Exception("Authorization Failed: You cannot delete folders.");
         }
-        
-        $request->validate([
-            'folder_id' => 'required|integer|exists:file_folders,id'
-        ]);
-        
-        $folder = FileFolder::with('subfolders', 'files')->findOrFail($request->folder_id);
         
         // Check if folder has subfolders or files
         $hasSubfolders = $folder->subfolders()->count() > 0;
@@ -2452,13 +2511,17 @@ class DigitalFileController extends Controller
             'file_id' => 'required|integer|exists:files,id'
         ]);
         
-        $file = FileModel::findOrFail($request->file_id);
+        $file = FileModel::with('folder')->findOrFail($request->file_id);
         
-        // Check if user owns the file or has management rights
-        if ($file->uploaded_by !== $user->id && !in_array('System Admin', $userRoles) && !in_array('HR Officer', $userRoles)) {
+        // Check if user owns the file, is folder creator, or has management rights
+        $isFileOwner = $file->uploaded_by === $user->id;
+        $isFolderCreator = $file->folder && $file->folder->created_by === $user->id;
+        $hasAdminRights = in_array('System Admin', $userRoles) || in_array('HR Officer', $userRoles);
+        
+        if (!$isFileOwner && !$isFolderCreator && !$hasAdminRights) {
             return response()->json([
                 'success' => false,
-                'message' => 'You can only delete files you uploaded.'
+                'message' => 'You can only delete files you uploaded or files in folders you created.'
             ], 403);
         }
         
@@ -4014,26 +4077,31 @@ class DigitalFileController extends Controller
         $user = Auth::user();
         $userRoles = $user->roles()->pluck('name')->toArray();
         
-        $canManageFiles = in_array('System Admin', $userRoles) || 
-                         in_array('HR Officer', $userRoles) || 
-                         in_array('HOD', $userRoles) || 
-                         in_array('General Manager', $userRoles) ||
-                         in_array('Record Officer', $userRoles);
-        
-        $canViewAll = in_array('System Admin', $userRoles) || 
-                      in_array('General Manager', $userRoles) || 
-                      in_array('HR Officer', $userRoles) || 
-                      in_array('Record Officer', $userRoles);
-        
-        $currentDeptId = $user->department_id ?? null;
-        
         // Get folder with relationships
         $folder = FileFolder::with(['creator', 'department', 'parent', 'subfolders.creator', 'subfolders.department'])
             ->withCount(['files', 'subfolders'])
             ->findOrFail($folderId);
         
-        // Check access
-        if (!$canViewAll) {
+        // Check if user is the folder creator
+        $isFolderCreator = $folder->created_by === $user->id;
+        
+        $canManageFiles = in_array('System Admin', $userRoles) || 
+                         in_array('HR Officer', $userRoles) || 
+                         in_array('HOD', $userRoles) || 
+                         in_array('General Manager', $userRoles) ||
+                         in_array('Record Officer', $userRoles) ||
+                         $isFolderCreator; // Folder creators can manage their folders
+        
+        $canViewAll = in_array('System Admin', $userRoles) || 
+                      in_array('General Manager', $userRoles) || 
+                      in_array('HR Officer', $userRoles) || 
+                      in_array('Record Officer', $userRoles) ||
+                      $isFolderCreator; // Folder creators can view their folders
+        
+        $currentDeptId = $user->department_id ?? null;
+        
+        // Check access - folder creators always have access
+        if (!$canViewAll && !$isFolderCreator) {
             if ($folder->access_level === 'private') {
                 // Check if user has assignment
                 $hasAssignment = FileUserAssignment::where('folder_id', $folderId)
