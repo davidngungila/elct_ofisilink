@@ -803,9 +803,50 @@ function uploadToFolder(folderId, folderName) {
     });
 }
 
+// Show/hide department field based on access level
+$('#folderAccessLevel').on('change', function() {
+    const accessLevel = $(this).val();
+    const departmentField = $('#departmentFieldContainer');
+    const departmentSelect = $('#folderDepartmentId');
+    const folderCodeContainer = $('#folderCodeContainer');
+    
+    if (accessLevel === 'department') {
+        departmentField.show();
+        departmentSelect.prop('required', true);
+        folderCodeContainer.removeClass('col-md-6').addClass('col-md-12');
+    } else {
+        departmentField.hide();
+        departmentSelect.prop('required', false);
+        departmentSelect.val('');
+        folderCodeContainer.removeClass('col-md-12').addClass('col-md-6');
+    }
+});
+
+// Initialize on page load
+$(document).ready(function() {
+    $('#folderAccessLevel').trigger('change');
+});
+
 // Create Folder Form
 $('#createFolderForm').on('submit', function(e) {
     e.preventDefault();
+    
+    // Validate department_id if access_level is department
+    const accessLevel = $('#folderAccessLevel').val();
+    const departmentId = $('#folderDepartmentId').val();
+    
+    if (accessLevel === 'department' && !departmentId) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Validation Error',
+            text: 'Please select a department when access level is set to Department.',
+            customClass: {
+                container: 'swal2-container-high-zindex',
+                popup: 'swal2-popup-high-zindex'
+            }
+        });
+        return;
+    }
     
     const formData = $(this).serialize();
     const submitBtn = $(this).find('button[type="submit"]');
