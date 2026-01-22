@@ -3233,11 +3233,8 @@ class DigitalFileController extends Controller
                          in_array('HR Officer', $userRoles) || 
                          in_array('HOD', $userRoles) || 
                          in_array('General Manager', $userRoles) ||
-                         in_array('Record Officer', $userRoles);
-        
-        if (!$canManageFiles) {
-            abort(403, 'You do not have permission to upload files.');
-        }
+                         in_array('Record Officer', $userRoles) ||
+                         in_array('Staff', $userRoles); // Allow staff to upload
         
         $canViewAll = in_array('System Admin', $userRoles) || 
                       in_array('General Manager', $userRoles) || 
@@ -3247,11 +3244,14 @@ class DigitalFileController extends Controller
         $userBranchId = $user->branch_id ?? null;
         $requestBranchId = request()->input('branch_id');
         $selectedBranchId = $requestBranchId ?? $userBranchId;
+        $folderId = request()->input('folder_id'); // Get folder_id from query string
         
         $departments = Department::where('is_active', true)->orderBy('name')->get();
         
-        // Get folders filtered by branch
-        $foldersQuery = FileFolder::with(['department', 'branch'])
+        $currentDeptId = $user->department_id ?? null;
+        
+        // Get folders filtered by branch and access
+        $foldersQuery = FileFolder::with(['department', 'branch', 'creator'])
             ->orderBy('name');
         
         // Filter by branch
@@ -3263,9 +3263,21 @@ class DigitalFileController extends Controller
             $foldersQuery->where('branch_id', $userBranchId);
         }
         
+        // Filter by access level if not admin
+        if (!$canViewAll) {
+            $foldersQuery->where(function($q) use ($currentDeptId, $user) {
+                $q->where('access_level', 'public')
+                  ->orWhere(function($w) use ($currentDeptId) {
+                      $w->where('access_level', 'department')
+                        ->where('department_id', $currentDeptId);
+                  })
+                  ->orWhere('created_by', $user->id); // Include folders created by user
+            });
+        }
+        
         $folders = $foldersQuery->get();
         
-        return view('modules.files.digital.upload', compact('folders', 'departments', 'user'));
+        return view('modules.files.digital.upload', compact('folders', 'departments', 'user', 'folderId'));
     }
     
     /**
@@ -3382,6 +3394,24 @@ class DigitalFileController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
         
+        // Get all documents assigned to this user
+        $assignedFiles = FileModel::with(['folder', 'uploader', 'assignments' => function($q) use ($user) {
+                $q->where('user_id', $user->id)
+                  ->where(function($query) {
+                      $query->whereNull('expiry_date')
+                            ->orWhere('expiry_date', '>=', now());
+                  });
+            }])
+            ->whereHas('assignments', function($q) use ($user) {
+                $q->where('user_id', $user->id)
+                  ->where(function($query) {
+                      $query->whereNull('expiry_date')
+                            ->orWhere('expiry_date', '>=', now());
+                  });
+            })
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
         // Combine and format all documents for table display
         $allDocuments = collect();
         
@@ -3440,6 +3470,27 @@ class DigitalFileController extends Controller
             ]);
         }
         
+        // Add assigned documents
+        foreach ($assignedFiles as $file) {
+            $assignment = $file->assignments->first();
+            $allDocuments->push([
+                'id' => $file->id,
+                'type' => 'assigned_file',
+                'document_type' => ucfirst($file->file_type ?? 'Other'),
+                'document_name' => $file->original_name,
+                'document_number' => $file->id,
+                'issue_date' => $assignment->assigned_at ?? $file->created_at,
+                'expiry_date' => $assignment->expiry_date ?? null,
+                'issued_by' => $file->uploader->name ?? 'System',
+                'file_size' => $file->file_size,
+                'file_path' => $file->file_path,
+                'folder_name' => $file->folder->name ?? 'No Folder',
+                'created_at' => $file->created_at,
+                'assigned_at' => $assignment->assigned_at ?? null,
+                'assigned_by' => $assignment->assigner->name ?? 'System',
+            ]);
+        }
+        
         // Sort by created_at desc and paginate
         $allDocuments = $allDocuments->sortByDesc('created_at')->values();
         $perPage = 20;
@@ -3455,18 +3506,20 @@ class DigitalFileController extends Controller
         // Get statistics
         $totalFiles = $myFiles->count();
         $totalEmployeeDocs = $employeeDocuments->count();
-        $totalSize = $myFiles->sum('file_size') + $employeeDocuments->sum('file_size');
+        $totalAssigned = $assignedFiles->count();
+        $totalSize = $myFiles->sum('file_size') + $employeeDocuments->sum('file_size') + $assignedFiles->sum('file_size');
         
         $byType = $allDocuments->groupBy('document_type')->map(function($group) {
             return $group->count();
         });
         
         $stats = [
-            'total' => $totalFiles + $totalEmployeeDocs,
+            'total' => $totalFiles + $totalEmployeeDocs + $totalAssigned,
             'total_size' => $totalSize,
             'by_type' => $byType,
             'digital_files' => $totalFiles,
             'employee_documents' => $totalEmployeeDocs,
+            'assigned_files' => $totalAssigned,
         ];
         
         // Get folders where user can upload (their department folders or public folders)
@@ -3487,7 +3540,29 @@ class DigitalFileController extends Controller
             ->orderBy('name')
             ->get();
         
-        return view('modules.files.digital.my-documents', compact('paginated', 'stats', 'availableFolders', 'myFolders', 'user'));
+        // Separate assigned documents for dedicated section
+        $assignedDocuments = collect();
+        foreach ($assignedFiles as $file) {
+            $assignment = $file->assignments->first();
+            $assignedDocuments->push([
+                'id' => $file->id,
+                'type' => 'assigned_file',
+                'document_type' => ucfirst($file->file_type ?? 'Other'),
+                'document_name' => $file->original_name,
+                'document_number' => $file->id,
+                'issue_date' => $assignment->assigned_at ?? $file->created_at,
+                'expiry_date' => $assignment->expiry_date ?? null,
+                'issued_by' => $file->uploader->name ?? 'System',
+                'file_size' => $file->file_size,
+                'file_path' => $file->file_path,
+                'folder_name' => $file->folder->name ?? 'No Folder',
+                'created_at' => $file->created_at,
+                'assigned_at' => $assignment->assigned_at ?? null,
+                'assigned_by' => $assignment->assigner->name ?? 'System',
+            ]);
+        }
+        
+        return view('modules.files.digital.my-documents', compact('paginated', 'stats', 'availableFolders', 'myFolders', 'user', 'assignedDocuments'));
     }
     
     /**

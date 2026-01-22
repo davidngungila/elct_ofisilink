@@ -194,6 +194,83 @@
     </div>
     @endif
 
+    <!-- Assigned Documents Section -->
+    @if(isset($assignedDocuments) && $assignedDocuments->count() > 0)
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm" style="border-left: 4px solid #17a2b8;">
+                <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="bx bx-user-check me-2 text-info"></i>Assigned Documents
+                        <span class="badge bg-info ms-2">{{ $assignedDocuments->count() }}</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Document Type</th>
+                                    <th>Document Name</th>
+                                    <th>Assigned By</th>
+                                    <th>Assigned Date</th>
+                                    <th>Expiry Date</th>
+                                    <th>File Size</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($assignedDocuments as $document)
+                                <tr>
+                                    <td><strong>{{ $document['document_type'] }}</strong></td>
+                                    <td>{{ $document['document_name'] }}</td>
+                                    <td>{{ $document['assigned_by'] ?? 'System' }}</td>
+                                    <td>{{ $document['assigned_at'] ? \Carbon\Carbon::parse($document['assigned_at'])->format('d M Y') : 'N/A' }}</td>
+                                    <td>
+                                        @if($document['expiry_date'])
+                                            @php
+                                                $expiryDate = \Carbon\Carbon::parse($document['expiry_date']);
+                                                $isExpired = $expiryDate->isPast();
+                                                $isExpiringSoon = $expiryDate->isFuture() && $expiryDate->diffInDays(now()) <= 30;
+                                            @endphp
+                                            <span class="{{ $isExpired ? 'text-danger' : ($isExpiringSoon ? 'text-warning' : '') }}">
+                                                {{ $expiryDate->format('d M Y') }}
+                                                @if($isExpired)
+                                                    <span class="badge bg-danger">Expired</span>
+                                                @elseif($isExpiringSoon)
+                                                    <span class="badge bg-warning">Expiring Soon</span>
+                                                @endif
+                                            </span>
+                                        @else
+                                            <span class="text-muted">No expiry</span>
+                                        @endif
+                                    </td>
+                                    <td>{{ number_format($document['file_size'] / 1024, 2) }} KB</td>
+                                    <td>
+                                        <div class="d-flex gap-1">
+                                            @php
+                                                $previewUrl = route('modules.files.digital.preview', $document['id']);
+                                                $downloadUrl = Storage::url($document['file_path']);
+                                            @endphp
+                                            <button class="btn btn-sm btn-info" onclick="previewDocument('{{ $previewUrl }}', '{{ addslashes($document['document_name']) }}', 'assigned_file', '{{ $downloadUrl }}', '{{ $document['file_path'] ?? '' }}')" title="Preview">
+                                                <i class="bx bx-show"></i>
+                                            </button>
+                                            <a href="{{ $downloadUrl }}" download class="btn btn-sm btn-outline-info" title="Download">
+                                                <i class="bx bx-download"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
     <!-- Documents Table -->
     <div class="row">
         <div class="col-12">

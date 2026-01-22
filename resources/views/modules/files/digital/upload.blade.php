@@ -49,7 +49,7 @@
                                 <select class="form-select" id="folder_id" name="folder_id" required>
                                     <option value="">-- Select Folder --</option>
                                     @foreach($folders as $folder)
-                                        <option value="{{ $folder->id }}">{{ $folder->name }}</option>
+                                        <option value="{{ $folder->id }}" {{ isset($folderId) && $folderId == $folder->id ? 'selected' : '' }}>{{ $folder->name }}</option>
                                     @endforeach
                                 </select>
                             </div>
