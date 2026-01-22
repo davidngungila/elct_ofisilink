@@ -271,24 +271,107 @@
     </div>
     @endif
 
-    <!-- Documents Table -->
-    <div class="row">
+    <!-- My Working Documents (Uploaded by Employee) -->
+    <div class="row mb-4">
         <div class="col-12">
-            <div class="card border-0 shadow-sm">
+            <div class="card border-0 shadow-sm" style="border-left: 4px solid #28a745;">
                 <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
                     <h5 class="mb-0 fw-bold">
-                        <i class="bx bx-file me-2 text-success"></i>All My Documents
-                        <span class="badge bg-success ms-2">{{ $paginated->total() }}</span>
+                        <i class="bx bx-briefcase me-2 text-success"></i>My Working Documents
+                        <span class="badge bg-success ms-2">{{ $paginatedWorking->total() }}</span>
                     </h5>
                     <div class="d-flex gap-2">
-                        <input type="text" id="searchDocuments" class="form-control form-control-sm" placeholder="Search documents..." style="width: 250px;">
+                        <input type="text" id="searchWorkingDocuments" class="form-control form-control-sm" placeholder="Search documents..." style="width: 250px;">
                         <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#uploadDocumentModal">
                             <i class="bx bx-upload me-1"></i>Upload
                         </button>
                     </div>
                 </div>
                 <div class="card-body">
-                    @if($paginated->count() > 0)
+                    @if($paginatedWorking->count() > 0)
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Document Type</th>
+                                        <th>Document Name</th>
+                                        <th>Folder</th>
+                                        <th>Upload Date</th>
+                                        <th>File Size</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="workingDocumentsTableBody">
+                                    @foreach($paginatedWorking as $document)
+                                    <tr class="working-document-row" data-name="{{ strtolower($document['document_name']) }}" data-type="{{ strtolower($document['document_type']) }}">
+                                        <td><strong>{{ $document['document_type'] }}</strong></td>
+                                        <td>{{ $document['document_name'] }}</td>
+                                        <td><span class="badge bg-secondary">{{ $document['folder_name'] }}</span></td>
+                                        <td>{{ $document['created_at'] ? \Carbon\Carbon::parse($document['created_at'])->format('d M Y') : 'N/A' }}</td>
+                                        <td>{{ number_format($document['file_size'] / 1024, 2) }} KB</td>
+                                        <td>
+                                            <div class="d-flex gap-1">
+                                                @php
+                                                    $previewUrl = route('modules.files.digital.preview', $document['id']);
+                                                    $downloadUrl = Storage::url($document['file_path']);
+                                                @endphp
+                                                <button class="btn btn-sm btn-success" onclick="previewDocument('{{ $previewUrl }}', '{{ addslashes($document['document_name']) }}', 'digital_file', '{{ $downloadUrl }}', '{{ $document['file_path'] ?? '' }}')" title="Preview">
+                                                    <i class="bx bx-show"></i>
+                                                </button>
+                                                <a href="{{ $downloadUrl }}" download class="btn btn-sm btn-outline-success" title="Download">
+                                                    <i class="bx bx-download"></i>
+                                                </a>
+                                                <button class="btn btn-sm btn-info" onclick="openAssignModal({{ $document['id'] }}, '{{ addslashes($document['document_name']) }}')" title="Assign to Staff">
+                                                    <i class="bx bx-user-plus"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-primary" onclick="viewFileDetails({{ $document['id'] }})" title="View Details">
+                                                    <i class="bx bx-info-circle"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- Pagination -->
+                        <div class="mt-4">
+                            {{ $paginatedWorking->links() }}
+                        </div>
+                    @else
+                        <div class="text-center py-5">
+                            <i class="bx bx-briefcase fs-1 text-muted mb-3"></i>
+                            <p class="text-muted">No working documents found. Upload your first document to get started.</p>
+                            <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#uploadDocumentModal">
+                                <i class="bx bx-upload me-1"></i>Upload Document
+                            </button>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- My Employee Documents (Uploaded by HR/Admin) -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm" style="border-left: 4px solid #ffc107;">
+                <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold">
+                        <i class="bx bx-id-card me-2 text-warning"></i>My Employee Documents
+                        <span class="badge bg-warning text-dark ms-2">{{ $paginatedEmployee->total() }}</span>
+                    </h5>
+                    <div class="d-flex gap-2">
+                        <input type="text" id="searchEmployeeDocuments" class="form-control form-control-sm" placeholder="Search documents..." style="width: 250px;">
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-3">
+                        <i class="bx bx-info-circle me-2"></i>
+                        <strong>Note:</strong> These documents are uploaded by HR/Administration. You cannot upload employee documents yourself.
+                    </div>
+                    @if($paginatedEmployee->count() > 0)
                         <div class="table-responsive">
                             <table class="table table-bordered table-hover">
                                 <thead class="table-light">
@@ -303,9 +386,9 @@
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody id="documentsTableBody">
-                                    @foreach($paginated as $document)
-                                    <tr class="document-row" data-name="{{ strtolower($document['document_name']) }}" data-type="{{ strtolower($document['document_type']) }}">
+                                <tbody id="employeeDocumentsTableBody">
+                                    @foreach($paginatedEmployee as $document)
+                                    <tr class="employee-document-row" data-name="{{ strtolower($document['document_name']) }}" data-type="{{ strtolower($document['document_type']) }}">
                                         <td><strong>{{ $document['document_type'] }}</strong></td>
                                         <td>{{ $document['document_name'] }}</td>
                                         <td><code>{{ $document['document_number'] }}</code></td>
@@ -334,31 +417,16 @@
                                         <td>
                                             <div class="d-flex gap-1">
                                                 @php
-                                                    if ($document['type'] === 'digital_file') {
-                                                        // Use preview route for digital files (supports access control)
-                                                        $previewUrl = route('modules.files.digital.preview', $document['id']);
-                                                        $downloadUrl = Storage::url($document['file_path']);
-                                                    } else {
-                                                        // Employee documents are in storage/documents/
-                                                        $docUrl = $document['file_url'] ?? asset('storage/documents/' . $document['file_path']);
-                                                        $previewUrl = $docUrl;
-                                                        $downloadUrl = $docUrl;
-                                                    }
+                                                    $docUrl = $document['file_url'] ?? asset('storage/documents/' . $document['file_path']);
+                                                    $previewUrl = $docUrl;
+                                                    $downloadUrl = $docUrl;
                                                 @endphp
-                                                <button class="btn btn-sm btn-success" onclick="previewDocument('{{ $previewUrl }}', '{{ addslashes($document['document_name']) }}', '{{ $document['type'] }}', '{{ $downloadUrl }}', '{{ $document['file_path'] ?? '' }}')" title="Preview">
+                                                <button class="btn btn-sm btn-warning" onclick="previewDocument('{{ $previewUrl }}', '{{ addslashes($document['document_name']) }}', 'employee_document', '{{ $downloadUrl }}', '{{ $document['file_path'] ?? '' }}')" title="Preview">
                                                     <i class="bx bx-show"></i>
                                                 </button>
-                                                <a href="{{ $downloadUrl }}" download class="btn btn-sm btn-outline-success" title="Download">
+                                                <a href="{{ $downloadUrl }}" download class="btn btn-sm btn-outline-warning" title="Download">
                                                     <i class="bx bx-download"></i>
                                                 </a>
-                                                @if($document['type'] === 'digital_file')
-                                                <button class="btn btn-sm btn-info" onclick="openAssignModal({{ $document['id'] }}, '{{ addslashes($document['document_name']) }}')" title="Assign to Staff">
-                                                    <i class="bx bx-user-plus"></i>
-                                                </button>
-                                                <button class="btn btn-sm btn-primary" onclick="viewFileDetails({{ $document['id'] }})" title="View Details">
-                                                    <i class="bx bx-info-circle"></i>
-                                                </button>
-                                                @endif
                                             </div>
                                         </td>
                                     </tr>
@@ -369,16 +437,12 @@
                         
                         <!-- Pagination -->
                         <div class="mt-4">
-                            {{ $paginated->links() }}
+                            {{ $paginatedEmployee->links() }}
                         </div>
                     @else
                         <div class="text-center py-5">
-                            <i class="bx bx-file-blank fs-1 text-muted mb-3"></i>
-                            <h5 class="text-muted">No Documents Found</h5>
-                            <p class="text-muted">You haven't uploaded any documents yet.</p>
-                            <button class="btn btn-success mt-3" data-bs-toggle="modal" data-bs-target="#uploadDocumentModal">
-                                <i class="bx bx-upload me-1"></i>Upload Your First Document
-                            </button>
+                            <i class="bx bx-id-card fs-1 text-muted mb-3"></i>
+                            <p class="text-muted">No employee documents found.</p>
                         </div>
                     @endif
                 </div>

@@ -3412,12 +3412,10 @@ class DigitalFileController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
         
-        // Combine and format all documents for table display
-        $allDocuments = collect();
-        
-        // Add digital files
+        // Format working documents (uploaded by employee themselves)
+        $workingDocuments = collect();
         foreach ($myFiles as $file) {
-            $allDocuments->push([
+            $workingDocuments->push([
                 'id' => $file->id,
                 'type' => 'digital_file',
                 'document_type' => ucfirst($file->file_type ?? 'Other'),
@@ -3433,7 +3431,8 @@ class DigitalFileController extends Controller
             ]);
         }
         
-        // Add employee documents
+        // Format employee documents (uploaded by HR/admin, not by employee)
+        $employeeDocsFormatted = collect();
         foreach ($employeeDocuments as $doc) {
             // Handle file path - employee documents are stored in storage/documents/
             // The file_path in database might be just filename or full path
@@ -3453,7 +3452,7 @@ class DigitalFileController extends Controller
                 }
             }
             
-            $allDocuments->push([
+            $employeeDocsFormatted->push([
                 'id' => $doc->id,
                 'type' => 'employee_document',
                 'document_type' => $doc->document_type ?? 'Other',
@@ -3470,37 +3469,27 @@ class DigitalFileController extends Controller
             ]);
         }
         
-        // Add assigned documents
-        foreach ($assignedFiles as $file) {
-            $assignment = $file->assignments->first();
-            $allDocuments->push([
-                'id' => $file->id,
-                'type' => 'assigned_file',
-                'document_type' => ucfirst($file->file_type ?? 'Other'),
-                'document_name' => $file->original_name,
-                'document_number' => $file->id,
-                'issue_date' => $assignment->assigned_at ?? $file->created_at,
-                'expiry_date' => $assignment->expiry_date ?? null,
-                'issued_by' => $file->uploader->name ?? 'System',
-                'file_size' => $file->file_size,
-                'file_path' => $file->file_path,
-                'folder_name' => $file->folder->name ?? 'No Folder',
-                'created_at' => $file->created_at,
-                'assigned_at' => $assignment->assigned_at ?? null,
-                'assigned_by' => $assignment->assigner->name ?? 'System',
-            ]);
-        }
-        
-        // Sort by created_at desc and paginate
-        $allDocuments = $allDocuments->sortByDesc('created_at')->values();
+        // Paginate working documents
+        $workingDocuments = $workingDocuments->sortByDesc('created_at')->values();
         $perPage = 20;
-        $currentPage = request()->get('page', 1);
-        $paginated = new \Illuminate\Pagination\LengthAwarePaginator(
-            $allDocuments->forPage($currentPage, $perPage),
-            $allDocuments->count(),
+        $currentPage = request()->get('page_working', 1);
+        $paginatedWorking = new \Illuminate\Pagination\LengthAwarePaginator(
+            $workingDocuments->forPage($currentPage, $perPage),
+            $workingDocuments->count(),
             $perPage,
             $currentPage,
-            ['path' => request()->url(), 'query' => request()->query()]
+            ['path' => request()->url(), 'query' => array_merge(request()->query(), ['tab' => 'working'])]
+        );
+        
+        // Paginate employee documents
+        $employeeDocsFormatted = $employeeDocsFormatted->sortByDesc('created_at')->values();
+        $currentPageEmployee = request()->get('page_employee', 1);
+        $paginatedEmployee = new \Illuminate\Pagination\LengthAwarePaginator(
+            $employeeDocsFormatted->forPage($currentPageEmployee, $perPage),
+            $employeeDocsFormatted->count(),
+            $perPage,
+            $currentPageEmployee,
+            ['path' => request()->url(), 'query' => array_merge(request()->query(), ['tab' => 'employee'])]
         );
         
         // Get statistics
@@ -3509,7 +3498,9 @@ class DigitalFileController extends Controller
         $totalAssigned = $assignedFiles->count();
         $totalSize = $myFiles->sum('file_size') + $employeeDocuments->sum('file_size') + $assignedFiles->sum('file_size');
         
-        $byType = $allDocuments->groupBy('document_type')->map(function($group) {
+        // Combine all for type statistics
+        $allForStats = $workingDocuments->concat($employeeDocsFormatted);
+        $byType = $allForStats->groupBy('document_type')->map(function($group) {
             return $group->count();
         });
         
@@ -3517,7 +3508,7 @@ class DigitalFileController extends Controller
             'total' => $totalFiles + $totalEmployeeDocs + $totalAssigned,
             'total_size' => $totalSize,
             'by_type' => $byType,
-            'digital_files' => $totalFiles,
+            'working_documents' => $totalFiles,
             'employee_documents' => $totalEmployeeDocs,
             'assigned_files' => $totalAssigned,
         ];
@@ -3540,7 +3531,7 @@ class DigitalFileController extends Controller
             ->orderBy('name')
             ->get();
         
-        // Separate assigned documents for dedicated section
+        // Format assigned documents for dedicated section
         $assignedDocuments = collect();
         foreach ($assignedFiles as $file) {
             $assignment = $file->assignments->first();
@@ -3562,7 +3553,7 @@ class DigitalFileController extends Controller
             ]);
         }
         
-        return view('modules.files.digital.my-documents', compact('paginated', 'stats', 'availableFolders', 'myFolders', 'user', 'assignedDocuments'));
+        return view('modules.files.digital.my-documents', compact('paginatedWorking', 'paginatedEmployee', 'stats', 'availableFolders', 'myFolders', 'user', 'assignedDocuments'));
     }
     
     /**
