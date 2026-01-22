@@ -893,5 +893,221 @@ function previewDocument(fileUrl, fileName, docType, downloadUrl, filePath) {
         `);
     }
 }
+
+// Assign Document Functions
+let allStaff = [];
+let selectedStaffIds = [];
+
+function openAssignModal(fileId, fileName) {
+    $('#assignDocumentId').val(fileId);
+    $('#assignDocumentName').val(fileName);
+    selectedStaffIds = [];
+    $('#selectedStaffList').html('<span class="text-muted">No staff selected</span>');
+    
+    // Load staff list
+    loadStaffList();
+    
+    // Show modal
+    const assignModal = new bootstrap.Modal(document.getElementById('assignDocumentModal'));
+    assignModal.show();
+}
+
+function loadStaffList() {
+    $.ajax({
+        url: '{{ route("modules.files.digital.ajax") }}',
+        type: 'POST',
+        data: {
+            action: 'get_users_for_assignment',
+            _token: token
+        },
+        success: function(response) {
+            if (response.success && response.users) {
+                allStaff = response.users;
+                renderStaffList();
+            } else {
+                $('#staffListContainer').html('<div class="alert alert-warning">No staff members found</div>');
+            }
+        },
+        error: function() {
+            $('#staffListContainer').html('<div class="alert alert-danger">Error loading staff list</div>');
+        }
+    });
+}
+
+function renderStaffList(searchTerm = '') {
+    const container = $('#staffListContainer');
+    const term = searchTerm.toLowerCase();
+    
+    const filteredStaff = allStaff.filter(staff => {
+        const name = (staff.name || '').toLowerCase();
+        const email = (staff.email || '').toLowerCase();
+        return name.includes(term) || email.includes(term);
+    });
+    
+    if (filteredStaff.length === 0) {
+        container.html('<div class="alert alert-info">No staff members found</div>');
+        return;
+    }
+    
+    let html = '<div class="list-group">';
+    filteredStaff.forEach(staff => {
+        const isSelected = selectedStaffIds.includes(staff.id);
+        html += `
+            <label class="list-group-item d-flex align-items-center">
+                <input type="checkbox" class="form-check-input me-3" value="${staff.id}" 
+                       ${isSelected ? 'checked' : ''} 
+                       onchange="toggleStaffSelection(${staff.id}, this.checked)">
+                <div class="flex-grow-1">
+                    <strong>${staff.name || 'N/A'}</strong>
+                    <br>
+                    <small class="text-muted">${staff.email || 'N/A'}</small>
+                    ${staff.department ? `<br><small class="text-muted"><i class="bx bx-building"></i> ${staff.department.name || ''}</small>` : ''}
+                </div>
+            </label>
+        `;
+    });
+    html += '</div>';
+    container.html(html);
+}
+
+function toggleStaffSelection(userId, isChecked) {
+    if (isChecked) {
+        if (!selectedStaffIds.includes(userId)) {
+            selectedStaffIds.push(userId);
+        }
+    } else {
+        selectedStaffIds = selectedStaffIds.filter(id => id !== userId);
+    }
+    updateSelectedStaffList();
+}
+
+function updateSelectedStaffList() {
+    const container = $('#selectedStaffList');
+    if (selectedStaffIds.length === 0) {
+        container.html('<span class="text-muted">No staff selected</span>');
+        return;
+    }
+    
+    let html = '';
+    selectedStaffIds.forEach(userId => {
+        const staff = allStaff.find(s => s.id === userId);
+        if (staff) {
+            html += `
+                <span class="badge bg-info p-2">
+                    ${staff.name || 'N/A'}
+                    <button type="button" class="btn-close btn-close-white ms-2" style="font-size: 0.7em;" onclick="removeStaff(${userId})"></button>
+                </span>
+            `;
+        }
+    });
+    container.html(html);
+}
+
+function removeStaff(userId) {
+    selectedStaffIds = selectedStaffIds.filter(id => id !== userId);
+    updateSelectedStaffList();
+    // Uncheck checkbox
+    $(`input[type="checkbox"][value="${userId}"]`).prop('checked', false);
+}
+
+function clearStaffSearch() {
+    $('#searchStaff').val('');
+    renderStaffList();
+}
+
+// Search staff
+$('#searchStaff').on('input', function() {
+    renderStaffList($(this).val());
+});
+
+// Assign Document Form Submission
+$('#assignDocumentForm').on('submit', function(e) {
+    e.preventDefault();
+    
+    const fileId = $('#assignDocumentId').val();
+    
+    if (selectedStaffIds.length === 0) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'No Staff Selected',
+            text: 'Please select at least one staff member to assign this document to.',
+            customClass: {
+                container: 'swal2-container-high-zindex',
+                popup: 'swal2-popup-high-zindex'
+            }
+        });
+        return;
+    }
+    
+    const submitBtn = $(this).find('button[type="submit"]');
+    const originalHtml = submitBtn.html();
+    submitBtn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Assigning...');
+    
+    $.ajax({
+        url: '{{ route("modules.files.digital.ajax") }}',
+        type: 'POST',
+        data: {
+            action: 'assign_document_to_staff',
+            file_id: fileId,
+            user_ids: selectedStaffIds,
+            _token: token
+        },
+        success: function(response) {
+            if (response.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success!',
+                    text: response.message || 'Document assigned successfully',
+                    showConfirmButton: true,
+                    confirmButtonText: 'OK',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    customClass: {
+                        container: 'swal2-container-high-zindex',
+                        popup: 'swal2-popup-high-zindex'
+                    },
+                    didOpen: () => {
+                        const swalContainer = document.querySelector('.swal2-container');
+                        if (swalContainer) {
+                            swalContainer.style.zIndex = '99999';
+                        }
+                        const swalPopup = document.querySelector('.swal2-popup');
+                        if (swalPopup) {
+                            swalPopup.style.zIndex = '100000';
+                        }
+                    }
+                }).then(() => {
+                    const assignModal = bootstrap.Modal.getInstance(document.getElementById('assignDocumentModal'));
+                    assignModal.hide();
+                    location.reload();
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Assignment Failed',
+                    text: response.message || 'Failed to assign document',
+                    customClass: {
+                        container: 'swal2-container-high-zindex',
+                        popup: 'swal2-popup-high-zindex'
+                    }
+                });
+                submitBtn.prop('disabled', false).html(originalHtml);
+            }
+        },
+        error: function(xhr) {
+            const response = xhr.responseJSON;
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: response?.message || 'An error occurred while assigning document',
+                customClass: {
+                    container: 'swal2-container-high-zindex',
+                    popup: 'swal2-popup-high-zindex'
+                }
+            });
+            submitBtn.prop('disabled', false).html(originalHtml);
+        }
+    });
+});
 </script>
 @endpush
