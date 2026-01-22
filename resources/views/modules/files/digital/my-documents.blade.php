@@ -724,11 +724,40 @@
 const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
 // Search functionality
+// Search Working Documents
+$('#searchWorkingDocuments').on('input', function() {
+    const searchTerm = $(this).val().toLowerCase();
+    $('.working-document-row').each(function() {
+        const name = $(this).data('name') || '';
+        const type = $(this).data('type') || '';
+        if (name.includes(searchTerm) || type.includes(searchTerm)) {
+            $(this).show();
+        } else {
+            $(this).hide();
+        }
+    });
+});
+
+// Search Employee Documents
+$('#searchEmployeeDocuments').on('input', function() {
+    const searchTerm = $(this).val().toLowerCase();
+    $('.employee-document-row').each(function() {
+        const name = $(this).data('name') || '';
+        const type = $(this).data('type') || '';
+        if (name.includes(searchTerm) || type.includes(searchTerm)) {
+            $(this).show();
+        } else {
+            $(this).hide();
+        }
+    });
+});
+
+// Legacy search (for backward compatibility)
 $('#searchDocuments').on('input', function() {
     const searchTerm = $(this).val().toLowerCase();
     $('.document-row').each(function() {
-        const name = $(this).data('name');
-        const type = $(this).data('type');
+        const name = $(this).data('name') || '';
+        const type = $(this).data('type') || '';
         if (name.includes(searchTerm) || type.includes(searchTerm)) {
             $(this).show();
         } else {
