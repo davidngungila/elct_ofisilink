@@ -283,7 +283,7 @@
                                         </div>
                                         @endif
 
-                                        @if($activity->progressReports->isEmpty())
+                                        @if($totalReports == 0)
                                         <div class="alert alert-info border-0 shadow-sm" style="border-radius: 10px;">
                                             <div class="d-flex align-items-center">
                                                 <i class="bx bx-info-circle fs-4 me-3"></i>
