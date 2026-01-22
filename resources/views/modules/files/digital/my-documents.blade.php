@@ -593,7 +593,7 @@ $('#uploadDocumentForm').on('submit', function(e) {
 function previewDocument(fileUrl, fileName, docType, downloadUrl) {
     const modal = new bootstrap.Modal(document.getElementById('previewModal'));
     const title = document.getElementById('previewModalTitle');
-    const content = document.getElementById('previewModalContent');
+    const content = $('#previewModalContent'); // Use jQuery selector
     const downloadLink = document.getElementById('previewDownloadLink');
     
     title.textContent = fileName;
