@@ -1170,6 +1170,28 @@ document.addEventListener('DOMContentLoaded', function(){
         }
     });
 
+    // ========== VIEW ASSESSMENT HANDLER ==========
+    document.addEventListener('click', function(e){
+        if (e.target.closest('.btn-view-assessment')) {
+            const btn = e.target.closest('.btn-view-assessment');
+            const assessmentId = btn.dataset.assessmentId;
+            const assessmentName = btn.dataset.assessmentName;
+            
+            if (assessmentId) {
+                // Redirect to assessment details page
+                window.location.href = "{{ route('assessments.show', ['assessment' => 0]) }}".replace('/0', '/' + assessmentId);
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Assessment ID not found',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#dc3545'
+                });
+            }
+        }
+    });
+    
     // ========== ADMIN MANAGEMENT FUNCTIONS ==========
     @if($isAdmin || $isHR)
     
