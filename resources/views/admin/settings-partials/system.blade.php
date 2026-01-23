@@ -677,50 +677,22 @@
                 
                 @if(($systemSettings ?? collect())->count() > 0)
                 <!-- Bulk Actions -->
-                <div class="mt-3 d-none" id="bulkActions">
-                    <div class="card bg-light">
-                        <div class="card-body py-2">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="text-muted">
-                                    <span id="selectedCount">0</span> setting(s) selected
-                                </span>
-                                <div class="btn-group btn-group-sm">
-                                    <button class="btn btn-outline-danger" onclick="bulkDeleteSettings()">
-                                        <i class="bx bx-trash"></i> Delete Selected
-                                    </button>
-                                    <button class="btn btn-outline-secondary" onclick="clearSelection()">
-                                        <i class="bx bx-x"></i> Clear Selection
-                                    </button>
-                                </div>
-                            </div>
+                <div class="card-footer bg-light border-top d-none" id="bulkActions">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-muted">
+                            <span id="selectedCount">0</span> setting(s) selected
+                        </span>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-danger" onclick="bulkDeleteSettings()">
+                                <i class="bx bx-trash"></i> Delete Selected
+                            </button>
+                            <button class="btn btn-outline-secondary" onclick="clearSelection()">
+                                <i class="bx bx-x"></i> Clear Selection
+                            </button>
                         </div>
                     </div>
                 </div>
                 @endif
-                        </tbody>
-                    </table>
-                </div>
-                
-                <!-- Bulk Actions -->
-                <div class="mt-3 d-none" id="bulkActions">
-                    <div class="card bg-light">
-                        <div class="card-body py-2">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="text-muted">
-                                    <span id="selectedCount">0</span> setting(s) selected
-                                </span>
-                                <div class="btn-group btn-group-sm">
-                                    <button class="btn btn-outline-danger" onclick="bulkDeleteSettings()">
-                                        <i class="bx bx-trash"></i> Delete Selected
-                                    </button>
-                                    <button class="btn btn-outline-secondary" onclick="clearSelection()">
-                                        <i class="bx bx-x"></i> Clear Selection
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -743,8 +715,8 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Key <span class="text-danger">*</span></label>
-                            <input type="text" name="key" id="setting_key" class="form-control" required placeholder="e.g., otp_timeout_minutes">
-                            <small class="text-muted">Unique identifier (lowercase, underscores)</small>
+                            <input type="text" name="key" id="setting_key" class="form-control" required placeholder="e.g., otp_timeout_minutes" pattern="[a-z0-9_]+" title="Only lowercase letters, numbers, and underscores allowed">
+                            <small class="text-muted">Unique identifier (lowercase, numbers, underscores only)</small>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Type <span class="text-danger">*</span></label>
@@ -1003,7 +975,9 @@ function updateValueInput() {
         window.openSystemSettingModal = function() {
             $('#systemSettingForm')[0].reset();
             $('#setting_id').val('');
+            $('#setting_key').prop('readonly', false); // Allow key editing for new settings
             $('#systemSettingModalTitle').text('Add System Setting');
+            updateValueInput(); // Initialize value input
         };
         
         window.editSystemSetting = function(id) {
@@ -1016,13 +990,32 @@ function updateValueInput() {
                         if(setting) {
                             $('#setting_id').val(setting.id);
                             $('#setting_key').val(setting.key);
-                            $('#setting_value').val(setting.value);
+                            $('#setting_key').prop('readonly', true); // Prevent key editing
                             $('#setting_type').val(setting.type);
                             $('#setting_description').val(setting.description);
+                            
+                            // Update value input based on type
+                            updateValueInput();
+                            
+                            // Set value after input is created
+                            setTimeout(function() {
+                                const valueInput = document.getElementById('setting_value');
+                                if (valueInput) {
+                                    if (setting.type === 'boolean') {
+                                        valueInput.value = (setting.value === '1' || setting.value === 'true' || setting.value === 1 || setting.value === true) ? '1' : '0';
+                                    } else {
+                                        valueInput.value = setting.value || '';
+                                    }
+                                }
+                            }, 100);
+                            
                             $('#systemSettingModalTitle').text('Edit System Setting');
                             $('#systemSettingModal').modal('show');
                         }
                     }
+                },
+                error: function(xhr) {
+                    Swal.fire('Error!', xhr.responseJSON?.message || 'Failed to load setting', 'error');
                 }
             });
         };
@@ -1171,12 +1164,47 @@ function clearSelection() {
         // Form submission handler
         $('#systemSettingForm').on('submit', function(e) {
             e.preventDefault();
-            const formData = $(this).serialize();
+            
+            // Validate key format
+            const key = $('#setting_key').val();
+            if (!/^[a-z0-9_]+$/.test(key)) {
+                Swal.fire('Validation Error!', 'Key must contain only lowercase letters, numbers, and underscores', 'error');
+                return;
+            }
+            
+            // Get value based on input type
+            const valueInput = document.getElementById('setting_value');
+            let value = '';
+            if (valueInput) {
+                if (valueInput.type === 'checkbox') {
+                    value = valueInput.checked ? '1' : '0';
+                } else {
+                    value = valueInput.value || '';
+                }
+            }
+            
+            const formData = {
+                _token: '{{ csrf_token() }}',
+                key: key,
+                value: value,
+                type: $('#setting_type').val(),
+                description: $('#setting_description').val()
+            };
+            
             const settingId = $('#setting_id').val();
             const url = settingId 
                 ? '{{ route("admin.settings.system.update", ":id") }}'.replace(':id', settingId)
                 : '{{ route("admin.settings.system.store") }}';
             const method = settingId ? 'PUT' : 'POST';
+            
+            // Show loading
+            Swal.fire({
+                title: 'Saving...',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
             
             $.ajax({
                 url: url,
@@ -1185,7 +1213,13 @@ function clearSelection() {
                 success: function(response) {
                     if(response.success) {
                         $('#systemSettingModal').modal('hide');
-                        Swal.fire('Success!', response.message, 'success').then(() => {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Success!',
+                            text: response.message,
+                            timer: 1500,
+                            showConfirmButton: false
+                        }).then(() => {
                             location.reload();
                         });
                     }
