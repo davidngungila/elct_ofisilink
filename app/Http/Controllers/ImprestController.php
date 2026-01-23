@@ -587,23 +587,39 @@ class ImprestController extends Controller
     {
         $user = Auth::user();
         $isSystemAdmin = $user->hasRole('System Admin');
+        $isAccountant = $user->hasRole('Accountant');
         
-        if (!$user->hasAnyRole(['HOD', 'System Admin'])) {
+        if (!$user->hasAnyRole(['HOD', 'System Admin', 'Accountant'])) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Only HOD or System Admin can approve requests.'
+                'message' => 'Unauthorized. Only HOD, Accountant, or System Admin can approve requests.'
             ], 403);
         }
 
         try {
-            $imprestRequest = ImprestRequest::findOrFail($id);
+            $imprestRequest = ImprestRequest::with('accountant')->findOrFail($id);
             
-            // System Admin can approve at any level, others must wait for pending_hod
-            if (!$isSystemAdmin && $imprestRequest->status !== 'pending_hod') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'This request is not pending HOD approval'
-                ], 400);
+            // System Admin and Accountant can approve at any level, HOD must wait for pending_hod
+            if (!$isSystemAdmin && !$isAccountant) {
+                // For HOD, check if status is pending_hod
+                if ($imprestRequest->status !== 'pending_hod') {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'This request is not pending HOD approval'
+                    ], 400);
+                }
+                
+                // Optional: Check if HOD is from the same department as the accountant
+                // This is optional - remove if HOD should approve all requests
+                if ($imprestRequest->accountant && $imprestRequest->accountant->primary_department_id) {
+                    if ($user->primary_department_id !== $imprestRequest->accountant->primary_department_id) {
+                        // Allow HOD to approve anyway - comment out if you want strict department matching
+                        // return response()->json([
+                        //     'success' => false,
+                        //     'message' => 'You can only approve requests from your department'
+                        // ], 403);
+                    }
+                }
             }
 
             DB::beginTransaction();

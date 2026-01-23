@@ -258,24 +258,32 @@ function loadErrors() {
     tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></td></tr>';
     
     fetch(`{{ route('admin.system.errors') }}?level=${level}&limit=${limit}&search=${encodeURIComponent(search)}`, {
+        method: 'GET',
         headers: {
             'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'application/json'
-        }
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+        },
+        credentials: 'same-origin'
     })
-        .then(res => res.json())
+        .then(res => {
+            if (!res.ok) {
+                throw new Error(`HTTP error! status: ${res.status}`);
+            }
+            return res.json();
+        })
         .then(data => {
             if (data.success) {
-                displayErrors(data.errors);
-                document.getElementById('errorCount').textContent = data.errors.length;
+                displayErrors(data.errors || []);
+                document.getElementById('errorCount').textContent = (data.errors || []).length;
                 document.getElementById('lastUpdated').textContent = new Date().toLocaleString();
             } else {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Failed to load errors</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Failed to load errors: ' + (data.message || 'Unknown error') + '</td></tr>';
             }
         })
         .catch(err => {
             console.error('Error loading errors:', err);
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">Error loading errors. Please try again.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">Error loading errors: ' + err.message + '. Please refresh the page.</td></tr>';
         });
 }
 

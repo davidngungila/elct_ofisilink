@@ -39,8 +39,8 @@ class SystemErrorsController extends Controller
             ]);
         }
         
-        // Regular page load
-        $errors = $this->getRecentErrors($request);
+        // Regular page load - pass empty array, errors will be loaded via AJAX
+        $errors = collect([]);
         
         return view('admin.system-errors', compact('errors'));
     }

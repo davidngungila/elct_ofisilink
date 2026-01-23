@@ -47,12 +47,19 @@
         // HOD can only approve when status is pending_hod (unless System Admin/Accountant override)
         $canHodApprove = false;
         if ($isHOD) {
+            // HOD can approve when status is pending_hod
             if ($imprestRequest->status === 'pending_hod') {
                 $canHodApprove = true;
-            } elseif (($isSystemAdmin || $isAccountant) && in_array($imprestRequest->status, ['pending_hod', 'pending_ceo', 'approved', 'assigned', 'paid'])) {
-                // System Admin and Accountant can approve HOD level even if status has progressed
+            } 
+            // System Admin and Accountant can approve HOD level even if status has progressed
+            elseif (($isSystemAdmin || $isAccountant) && in_array($imprestRequest->status, ['pending_hod', 'pending_ceo', 'approved', 'assigned', 'paid'])) {
                 $canHodApprove = true;
             }
+        }
+        
+        // Also allow HOD role specifically (not just through $isHOD which includes System Admin/Accountant)
+        if (!$canHodApprove && $user->hasRole('HOD') && $imprestRequest->status === 'pending_hod') {
+            $canHodApprove = true;
         }
         
         // CEO can only approve when status is pending_ceo (unless System Admin/Accountant override)
