@@ -434,61 +434,55 @@ class EmployeeController extends Controller
     }
     
     /**
-     * Generate unique Employee ID based on format: EMP + YYYYMMDD + Department Code
-     * Format: EMP20251107DU (where DU is the first 2 uppercase letters of department code)
-     * Uses hire_date if provided, otherwise uses current date
-     * Uses department code if provided, otherwise uses 'XX' as default
+     * Generate unique Employee ID using sequential format: EMP001, EMP002, EMP003, etc.
+     * This provides a clean, simple, and predictable numbering system.
+     * 
+     * Alternative: Can use date-based format (EMP + YYYYMMDD + Department Code)
+     * by setting config('app.employee_id_format') to 'date-based'
      */
     private function generateEmployeeId($hireDate = null, $departmentId = null)
     {
         try {
-            // Use hire date if provided, otherwise use current date
-            $date = $hireDate ? date('Ymd', strtotime($hireDate)) : date('Ymd');
+            $format = config('app.employee_id_format', 'sequential'); // Default to sequential
             
-            // Get department code (first 2 uppercase letters)
-            $deptCode = 'XX'; // Default code
-            if ($departmentId) {
-                $department = Department::find($departmentId);
-                if ($department && $department->code) {
-                    // Get first 2 uppercase letters of department code
-                    $code = strtoupper($department->code);
-                    $deptCode = substr($code, 0, 2);
-                    // If code is single character, pad with X
-                    if (strlen($deptCode) < 2) {
-                        $deptCode = str_pad($deptCode, 2, 'X', STR_PAD_RIGHT);
-                    }
-                } else {
-                    // If department not found, try to get from department name
-                    if ($department && $department->name) {
-                        $name = strtoupper(preg_replace('/[^A-Z]/', '', $department->name));
-                        $deptCode = substr($name, 0, 2);
-                        if (strlen($deptCode) < 2) {
-                            $deptCode = 'XX';
-                        }
+            if ($format === 'date-based') {
+                return $this->generateDateBasedEmployeeId($hireDate, $departmentId);
+            }
+            
+            // Sequential format: EMP001, EMP002, EMP003, etc.
+            // Find the highest existing sequential number
+            $maxNumber = 0;
+            $existingIds = User::whereNotNull('employee_id')
+                ->where('employee_id', 'like', 'EMP%')
+                ->pluck('employee_id')
+                ->toArray();
+            
+            foreach ($existingIds as $id) {
+                // Extract numeric part from EMP001, EMP002, etc.
+                if (preg_match('/^EMP(\d+)$/', $id, $matches)) {
+                    $num = (int)$matches[1];
+                    if ($num > $maxNumber) {
+                        $maxNumber = $num;
                     }
                 }
             }
             
-            // Base format: EMP + YYYYMMDD + Department Code
-            $baseId = 'EMP' . $date . $deptCode;
+            // Generate next sequential number
+            $nextNumber = $maxNumber + 1;
+            $employeeId = 'EMP' . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
             
-            // Check if this ID already exists
-            $employeeId = $baseId;
-            $counter = 1;
-            $maxAttempts = 100;
-            
-            while (User::where('employee_id', $employeeId)->exists() && $counter < $maxAttempts) {
-                // If ID exists, add sequential number: EMP20251107DU-2
-                $employeeId = $baseId . '-' . $counter;
+            // Double-check uniqueness (shouldn't be needed, but safety check)
+            $counter = 0;
+            while (User::where('employee_id', $employeeId)->exists() && $counter < 1000) {
+                $nextNumber++;
+                $employeeId = 'EMP' . str_pad($nextNumber, 3, '0', STR_PAD_LEFT);
                 $counter++;
             }
             
-            if ($counter >= $maxAttempts) {
+            if ($counter >= 1000) {
                 Log::error('Failed to generate unique Employee ID after max attempts', [
-                    'date' => $date,
-                    'department_id' => $departmentId,
-                    'dept_code' => $deptCode,
-                    'base_id' => $baseId
+                    'format' => $format,
+                    'max_number' => $maxNumber
                 ]);
                 throw new \Exception('Failed to generate unique Employee ID. Please try again.');
             }
@@ -503,6 +497,66 @@ class EmployeeController extends Controller
             ]);
             throw $e;
         }
+    }
+    
+    /**
+     * Generate date-based Employee ID (alternative format)
+     * Format: EMP + YYYYMMDD + Department Code
+     */
+    private function generateDateBasedEmployeeId($hireDate = null, $departmentId = null)
+    {
+        // Use hire date if provided, otherwise use current date
+        $date = $hireDate ? date('Ymd', strtotime($hireDate)) : date('Ymd');
+        
+        // Get department code (first 2 uppercase letters)
+        $deptCode = 'XX'; // Default code
+        if ($departmentId) {
+            $department = Department::find($departmentId);
+            if ($department && $department->code) {
+                // Get first 2 uppercase letters of department code
+                $code = strtoupper($department->code);
+                $deptCode = substr($code, 0, 2);
+                // If code is single character, pad with X
+                if (strlen($deptCode) < 2) {
+                    $deptCode = str_pad($deptCode, 2, 'X', STR_PAD_RIGHT);
+                }
+            } else {
+                // If department not found, try to get from department name
+                if ($department && $department->name) {
+                    $name = strtoupper(preg_replace('/[^A-Z]/', '', $department->name));
+                    $deptCode = substr($name, 0, 2);
+                    if (strlen($deptCode) < 2) {
+                        $deptCode = 'XX';
+                    }
+                }
+            }
+        }
+        
+        // Base format: EMP + YYYYMMDD + Department Code
+        $baseId = 'EMP' . $date . $deptCode;
+        
+        // Check if this ID already exists
+        $employeeId = $baseId;
+        $counter = 1;
+        $maxAttempts = 100;
+        
+        while (User::where('employee_id', $employeeId)->exists() && $counter < $maxAttempts) {
+            // If ID exists, add sequential number: EMP20251107DU-2
+            $employeeId = $baseId . '-' . $counter;
+            $counter++;
+        }
+        
+        if ($counter >= $maxAttempts) {
+            Log::error('Failed to generate unique Employee ID after max attempts', [
+                'date' => $date,
+                'department_id' => $departmentId,
+                'dept_code' => $deptCode,
+                'base_id' => $baseId
+            ]);
+            throw new \Exception('Failed to generate unique Employee ID. Please try again.');
+        }
+        
+        return $employeeId;
     }
     
     public function show($id)
