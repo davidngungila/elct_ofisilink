@@ -69,6 +69,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Employee ID Format
+    |--------------------------------------------------------------------------
+    |
+    | Determines the format for generating employee numbers:
+    | - 'sequential': EMP001, EMP002, EMP003, etc. (recommended)
+    | - 'date-based': EMP20251107DU (date + department code)
+    |
+    */
+
+    'employee_id_format' => env('EMPLOYEE_ID_FORMAT', 'sequential'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------
     |
